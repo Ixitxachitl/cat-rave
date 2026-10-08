@@ -16,8 +16,8 @@
 
   Every setting can also be given as a URL parameter, which overrides the saved value — handy for
   running two copies with different setups. The panel's "Copy setup link" builds that link for you.
-    channel, tiktok (1 = TikFinity), youtube, ytkey, ytpoll, demo, size, bpm, linger, max, xmin, xmax,
-    ground, hold, maxchars, cmds, firsttime, botlist, ignore, extemotes, twitchid, pronouns, badges,
+    channel, kick, tiktok (1 = TikFinity), youtube, ytkey, ytpoll, demo, size, bpm, linger, max, xmin, xmax,
+    ground, hold, maxchars, cmds, firsttime, botlist, ignore, extemotes, pronouns, badges,
     ambient, sfx, sparks        (booleans take 1/0)
 
   Custom integrations (Streamer.bot, etc.) can also call:
@@ -145,6 +145,7 @@
   .cap i.twitch{background:#9146ff}
   .cap i.tiktok{background:linear-gradient(135deg,#25f4ee 50%,#fe2c55 50%)}
   .cap i.youtube{background:#ff0033}
+  .cap i.kick{background:#53fc18}
   .cap i.custom{background:#fff}
   .cap span{white-space:nowrap;padding:0 2px}
   .cap .badges{display:inline-flex;gap:3px;align-items:center}
@@ -308,6 +309,7 @@
   const FIELDS = [
     { sec: 'Chat sources' },
     { k: 'channel', label: 'Twitch channel', type: 'text', def: '', ph: 'yourchannel', help: 'Read anonymously, no login needed.' },
+    { k: 'kick', label: 'Kick channel', type: 'text', def: '', ph: 'yourchannel', help: 'Read anonymously, no login needed.' },
     { k: 'tiktok', label: 'TikTok bridge', type: 'text', def: '', ph: '1 = TikFinity, or ws://…', help: 'TikTok needs a local bridge app. "1" uses TikFinity on this PC.' },
     { k: 'youtube', label: 'YouTube live', type: 'text', def: '', ph: 'video ID / link, or ws://…', help: 'A live video ID or link (needs the API key below), or a bridge address.' },
     { k: 'ytkey', label: 'YouTube API key', type: 'password', def: '', help: 'YouTube Data API v3 key from Google Cloud Console.' },
@@ -324,10 +326,9 @@
     { sec: 'Speech bubbles' },
     { k: 'hold', label: 'Bubble time ×', type: 'num', def: 1, min: 0.3, max: 5, step: 0.1, help: 'Multiplier for how long messages stay up.' },
     { k: 'maxchars', label: 'Max message length', type: 'num', def: 150, min: 20, max: 500, step: 5 },
-    { k: 'badges', label: 'Show badges', type: 'bool', def: true, help: 'Twitch badges; owner / mod / member / sub / follower badges on YouTube and TikTok.' },
+    { k: 'badges', label: 'Show badges', type: 'bool', def: true, help: 'Twitch and Kick badges; owner / mod / member / sub / follower badges on YouTube and TikTok.' },
     { k: 'pronouns', label: 'Show pronouns', type: 'bool', def: true, help: 'Twitch chatters who set them on pronouns.alejo.io.' },
     { k: 'extemotes', label: 'BTTV / FFZ / 7TV emotes', type: 'bool', def: true },
-    { k: 'twitchid', label: 'Twitch user ID', type: 'text', def: '', ph: 'only if no Twitch channel', help: 'For your channel\'s BTTV/FFZ/7TV emotes when the Twitch channel is empty.' },
     { sec: 'Filtering' },
     { k: 'cmds', label: 'Show !commands', type: 'bool', def: false },
     { k: 'firsttime', label: 'Show first-time chatters', type: 'bool', def: false, help: 'Twitch flags these; spam bots usually show up this way.' },
@@ -355,6 +356,7 @@
   const tk = S.tiktok.trim();
   const CFG = {
     channel: S.channel.replace(/^#/, '').toLowerCase().trim(),
+    kick: S.kick.trim().replace(/^.*kick\.com\//i, '').replace(/[/?#].*$/, '').toLowerCase(),
     tiktok: tk === '1' ? 'ws://localhost:21213/' : tk,
     youtube: S.youtube.trim(),
     ytkey: S.ytkey.trim(),
@@ -372,7 +374,6 @@
     cmds: S.cmds,
     botlist: S.botlist,
     extemotes: S.extemotes,
-    twitchid: S.twitchid.trim(),
     pronouns: S.pronouns,
     badges: S.badges,
     firsttime: S.firsttime,
@@ -380,7 +381,7 @@
     sfx: S.sfx,
     sparks: S.sparks,
   };
-  CFG.demo = S.demo || (!CFG.channel && !CFG.tiktok && !CFG.youtube);
+  CFG.demo = S.demo || (!CFG.channel && !CFG.kick && !CFG.tiktok && !CFG.youtube);
 
   const BEAT = 60 / CFG.bpm;
   const root = document.documentElement;
@@ -1193,7 +1194,7 @@
   // ---------------- BTTV / FFZ / 7TV emotes ----------------
   const extEmotes = new Map(); // code -> { url, zw }
   const BTTV_ZW = new Set(['SoSnowy', 'IceCold', 'SantaHat', 'TopHat', 'ReinDeer', 'CandyCane', 'cvMask', 'cvHazmat']);
-  let twitchRoomId = CFG.twitchid;
+  let twitchRoomId = '', kickUserId = '';
   async function getJSON(u) { const r = await fetch(u); if (!r.ok) throw new Error(r.status + ' ' + u); return r.json(); }
   async function loadExtEmotes() {
     const next = new Map();
@@ -1219,6 +1220,7 @@
       getJSON(`https://api.betterttv.net/3/cached/frankerfacez/users/twitch/${twitchRoomId}`).then(ffz),
       getJSON(`https://7tv.io/v3/users/twitch/${twitchRoomId}`).then(u => stv(u.emote_set && u.emote_set.emotes)),
     ]);
+    if (kickUserId) await getJSON(`https://7tv.io/v3/users/kick/${kickUserId}`).then(u => stv(u.emote_set && u.emote_set.emotes)).catch(() => {});
     if (next.size) { extEmotes.clear(); next.forEach((v, k) => extEmotes.set(k, v)); }
     console.log('[raveCats] loaded', extEmotes.size, 'BTTV/FFZ/7TV emotes');
   }
@@ -1388,6 +1390,76 @@
     poll();
   }
 
+  // ---------------- Kick (anonymous, Kick's public Pusher chat socket) ----------------
+  const KICK_PUSHER = 'wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=8.4.0&flash=false';
+  const KICK_ROLE = { broadcaster: 'owner', moderator: 'mod', vip: 'vip', og: 'founder', founder: 'founder',
+    subscriber: 'sub', verified: 'verified', staff: 'staff', sub_gifter: 'gifter' };
+  let kickSubBadges = []; // [{ months, url }], longest first
+  async function connectKick(slug) {
+    let chatroom;
+    try {
+      const ch = await getJSON(`https://kick.com/api/v2/channels/${encodeURIComponent(slug)}`);
+      chatroom = ch.chatroom && ch.chatroom.id;
+      if (!chatroom) throw new Error('no chatroom');
+      kickSubBadges = (ch.subscriber_badges || []).map(b => ({ months: b.months, url: b.badge_image && b.badge_image.src }))
+        .filter(b => b.url).sort((a, b) => b.months - a.months);
+      if (ch.user_id && String(ch.user_id) !== kickUserId) { kickUserId = String(ch.user_id); if (CFG.extemotes) loadExtEmotes(); }
+    } catch (e) { console.warn('[raveCats] Kick channel lookup failed for', slug, e); return setTimeout(() => connectKick(slug), 30000); }
+    kickSocket(chatroom);
+  }
+  function kickSocket(chatroom) {
+    const ws = new WebSocket(KICK_PUSHER);
+    ws.onmessage = (ev) => {
+      let o; try { o = JSON.parse(ev.data); } catch { return; }
+      if (o.event === 'pusher:connection_established') {
+        ws.send(JSON.stringify({ event: 'pusher:subscribe', data: { auth: '', channel: `chatrooms.${chatroom}.v2` } }));
+        return;
+      }
+      if (o.event === 'pusher:ping') { ws.send(JSON.stringify({ event: 'pusher:pong', data: {} })); return; }
+      let d; try { d = typeof o.data === 'string' ? JSON.parse(o.data) : o.data; } catch { return; }
+      if (!d) return;
+      if (o.event === 'App\\Events\\ChatMessageEvent') {
+        const s = d.sender || {};
+        handleChat({
+          name: s.username,
+          text: (d.content || '').replace(/\[emote:\d+:([^\]]+)\]/g, '$1'),
+          tokens: kickTokens(d.content || ''),
+          color: s.identity && s.identity.color,
+          platform: 'kick',
+          badges: kickBadges(s.identity && s.identity.badges),
+        });
+      } else if (o.event === 'App\\Events\\UserBannedEvent') {
+        const u = d.user && d.user.username;
+        const c = u && cats.get('kick:' + u.toLowerCase()); if (c) leave(c);
+      }
+    };
+    ws.onclose = () => setTimeout(() => kickSocket(chatroom), 3000);
+    ws.onerror = () => {};
+  }
+  // Kick emotes arrive inline as [emote:ID:name]
+  function kickTokens(content) {
+    const out = [], re = /\[emote:(\d+):([^\]]+)\]/g;
+    let m, i = 0;
+    while ((m = re.exec(content))) {
+      if (m.index > i) out.push({ t: 'text', v: content.slice(i, m.index) });
+      out.push({ t: 'emote', code: m[2], url: `https://files.kick.com/emotes/${m[1]}/fullsize` });
+      i = re.lastIndex;
+    }
+    if (i < content.length) out.push({ t: 'text', v: content.slice(i) });
+    return out;
+  }
+  function kickBadges(list) {
+    if (!CFG.badges || !Array.isArray(list)) return [];
+    return list.map(b => {
+      const role = KICK_ROLE[b.type];
+      if (b.type === 'subscriber') {
+        const sb = kickSubBadges.find(x => x.months <= (b.count || 1)) || kickSubBadges[kickSubBadges.length - 1];
+        if (sb) return { url: sb.url, role };
+      }
+      return role ? { role } : null;
+    }).filter(Boolean);
+  }
+
   // ---------------- demo mode ----------------
   function runDemo() {
     const names = ['NeonWhiskers', 'bass_drop_betty', 'PixelPaws', 'GlowstickGary', 'mochi_raver', 'DJ_Catnip',
@@ -1407,7 +1479,7 @@
         name,
         text: action ? 'does a little spin' : lines[Math.floor(Math.random() * lines.length)],
         color: colors[hash(name) % colors.length],
-        platform: ['twitch', 'tiktok', 'youtube'][hash(name) % 3],
+        platform: ['twitch', 'kick', 'tiktok', 'youtube'][hash(name) % 4],
         action,
       });
       setTimeout(tick, 1200 + Math.random() * 2600);
@@ -1522,7 +1594,7 @@
       if (act === 'close') close();
       if (act === 'test') {
         const n = ['TestKitty', 'SettingsCat', 'PreviewPurr', 'DemoMeow'][Math.floor(Math.random() * 4)];
-        window.raveCats.say(n, 'This is how chat will look! 🎶', { platform: CFG.channel ? 'twitch' : CFG.youtube ? 'youtube' : CFG.tiktok ? 'tiktok' : 'custom' });
+        window.raveCats.say(n, 'This is how chat will look! 🎶', { platform: CFG.channel ? 'twitch' : CFG.kick ? 'kick' : CFG.youtube ? 'youtube' : CFG.tiktok ? 'tiktok' : 'custom' });
         msg.textContent = 'Sent a test message (uses the settings currently running).';
       }
       if (act === 'reset') {
@@ -1575,7 +1647,8 @@
   let rt;
   addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(buildSlots, 200); });
   if (CFG.channel) connectTwitch(CFG.channel);
-  if (CFG.badges && (CFG.channel || CFG.twitchid)) loadTwitchBadges(CFG.channel);
+  if (CFG.badges && CFG.channel) loadTwitchBadges(CFG.channel);
+  if (CFG.kick) connectKick(CFG.kick);
   if (CFG.tiktok) connectBridge(CFG.tiktok, 'tiktok');
   if (CFG.youtube) {
     if (/^wss?:\/\//i.test(CFG.youtube)) connectBridge(CFG.youtube, 'youtube');
