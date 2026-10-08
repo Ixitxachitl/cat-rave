@@ -903,6 +903,7 @@
   }
 
   function speak(cat, tokens, kind, badges = []) {
+    if (cat.leaving) return;
     cat.last = Date.now();
     clearTimeout(cat.exitTimer);
     if (cat.speaking) {
@@ -1012,7 +1013,7 @@
 
   // ---------------- entry point for all chat sources ----------------
   function handleChat({ name, login, text, tokens, color, platform = 'custom', action = false, badges = [] }) {
-    if (!name) return;
+    if (!name || hidden || Date.now() < quietUntil) return;
     const lower = name.toLowerCase();
     if (CFG.ignore.has(lower)) return;
     const plain = (text || '').trim();
@@ -1068,6 +1069,30 @@
     say: (name, text, opts = {}) => handleChat({ name, text, color: opts.color, platform: opts.platform || 'custom' }),
     clear: () => [...cats.values()].forEach(leave),
   };
+
+  // ---------------- hidden / shown ----------------
+  // While the overlay is hidden (background tab, OBS source not visible) the browser throttles
+  // timers, so bubbles freeze and everything waiting fires at once when it comes back. Instead,
+  // chat is ignored while hidden and the stage starts fresh when it's shown again.
+  let hidden = document.hidden, quietUntil = 0, shownAt = Date.now();
+  function resetStage() {
+    pending.clear();
+    cats.forEach(c => { c.leaving = true; clearTimeout(c.exitTimer); });
+    cats.clear();
+    activeBubbles.clear();
+    slots.forEach(s => { s.cat = null; s.busyUntil = 0; });
+    stage.querySelectorAll('.cat, .sfx, .spark').forEach(el => el.remove());
+    stage.classList.remove('has-cats', 'sync');
+  }
+  function setHidden(h) {
+    if (h === hidden) return;
+    hidden = h;
+    resetStage();
+    // throttled timers (demo, YouTube batches) flush right after the page wakes up; skip those
+    if (!h) { shownAt = Date.now(); quietUntil = shownAt + 1000; }
+  }
+  document.addEventListener('visibilitychange', () => setHidden(document.hidden));
+  addEventListener('obsSourceVisibleChanged', e => setHidden(!(e.detail && e.detail.visible)));
 
   // ---------------- Twitch (anonymous IRC over WebSocket) ----------------
   function parseTags(raw) {
@@ -1374,7 +1399,8 @@
           wait = Math.max(CFG.ytpoll, j.pollingIntervalMillis || 0);
           if (!first) {
             // spread a batch out over the poll window so cats don't all talk at once
-            const items = (j.items || []).filter(it => it.snippet && it.snippet.displayMessage);
+            // (and drop anything sent while the overlay was hidden)
+            const items = (j.items || []).filter(it => it.snippet && it.snippet.displayMessage && !(Date.parse(it.snippet.publishedAt) < shownAt));
             items.forEach((it, i) => setTimeout(() => handleChat({
               name: it.authorDetails.displayName,
               text: it.snippet.displayMessage,
