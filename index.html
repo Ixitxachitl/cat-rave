@@ -9,35 +9,16 @@
   ------------------------------------------------------------
   Add as a Browser Source (e.g. 1920x1080), transparent background is automatic.
 
-  URL parameters (append to the file path, e.g. file:///C:/overlays/rave-cats-overlay.html?channel=yourname):
-    channel=NAME        Twitch channel to read (anonymous, no login needed)
-    tiktok=URL          WebSocket for TikTok chat via a local bridge.
-                        tiktok=1 uses TikFinity's default ws://localhost:21213/
-    youtube=VIDEO_ID    YouTube live chat via the YouTube Data API (also needs ytkey)
-      ytkey=API_KEY     A YouTube Data API v3 key (free from Google Cloud Console)
-      ytpoll=6          Seconds between polls (API quota: ~5 units per poll, 10,000/day free)
-    youtube=ws://...    OR point YouTube at a local WebSocket bridge instead of the API
-    Any combination works: ?channel=me&tiktok=1&youtube=abc123&ytkey=XYZ
-    demo=1              Fake chat for testing (auto-on if no source is given)
-    size=120            Cat width in px
-    bpm=126             Dance tempo (all cats dance on the same beat)
-    linger=0.6          Seconds a cat stays after its bubble fades before ducking away
-    max=12              Max cats on screen (also limited by screen width)
-    maxchars=150        Truncate long messages
-    hold=1              Multiplier for how long bubbles stay up
-    xmin=0&xmax=100     Horizontal range (percent) cats may stand in
-    ground=6            Distance from bottom edge in px
-    ignore=nightbot,streamelements   Users to hide
-    cmds=1              Show !commands (hidden by default)
-    extemotes=0         Don't load BTTV / FFZ / 7TV emotes (loaded by default: global + your channel's)
-    twitchid=ID         Twitch user ID for channel BTTV/FFZ/7TV emotes when you're not using channel=
-    pronouns=0          Don't show Twitch pronouns (from pronouns.alejo.io; shown by default)
-    botlist=0           Don't load the public Twitch known-bot list (TwitchInsights); loaded by default
-    firsttime=1         Show Twitch first-time chatters (hidden by default, where the platform flags them —
-                        Twitch does; TikTok and YouTube don't say, so they always show)
-    ambient=0           Turn off the floor glow strip
-    sfx=0               Turn off the comic "POW!" bursts
-    sparks=0            Turn off glowstick sparkles
+  SETTINGS: in OBS, right-click this source → Interact, move the mouse over the overlay and
+  click the gear in the bottom-right corner. Settings are saved in this browser source's local
+  storage and applied when you press "Save & apply". (The panel is visible on stream while open.)
+  With no chat source set, demo chat runs so you can see it working.
+
+  Every setting can also be given as a URL parameter, which overrides the saved value — handy for
+  running two copies with different setups. The panel's "Copy setup link" builds that link for you.
+    channel, tiktok (1 = TikFinity), youtube, ytkey, ytpoll, demo, size, bpm, linger, max, xmin, xmax,
+    ground, hold, maxchars, cmds, firsttime, botlist, ignore, extemotes, twitchid, pronouns, badges,
+    ambient, sfx, sparks        (booleans take 1/0)
 
   Custom integrations (Streamer.bot, etc.) can also call:
     window.raveCats.say("name", "message", { color: "#ff00aa", platform: "twitch" })
@@ -166,6 +147,9 @@
   .cap i.youtube{background:#ff0033}
   .cap i.custom{background:#fff}
   .cap span{white-space:nowrap;padding:0 2px}
+  .cap .badges{display:inline-flex;gap:3px;align-items:center}
+  .cap .badges img,.cap .badges svg{width:18px;height:18px;display:block}
+  .cap .badges img{filter:drop-shadow(1px 0 0 var(--ink)) drop-shadow(-1px 0 0 var(--ink)) drop-shadow(0 1px 0 var(--ink)) drop-shadow(0 -1px 0 var(--ink))}
 
   /* ---------- speech bubbles ---------- */
   .bwrap{
@@ -261,6 +245,57 @@
     15%{opacity:1;transform:translate(0,-8px) scale(1) rotate(30deg)}
     100%{transform:translate(var(--dx),-90px) scale(.2) rotate(200deg);opacity:0}
   }
+
+  /* ---------- settings window (only visible while you interact with the source) ---------- */
+  #gear{position:fixed;right:16px;bottom:16px;width:48px;height:48px;border-radius:50%;z-index:1000;
+    border:3px solid var(--ink);background:#fff27a;box-shadow:4px 4px 0 var(--ink);cursor:pointer;
+    display:grid;place-items:center;opacity:0;pointer-events:none;transition:opacity .25s,transform .15s}
+  body.mouse #gear{opacity:1;pointer-events:auto}
+  #gear:hover{transform:rotate(30deg) scale(1.06)}
+  #gear svg{width:26px;height:26px}
+  #settings{position:fixed;inset:0;z-index:1001;display:none;align-items:center;justify-content:center;
+    background:rgba(12,8,24,.55);pointer-events:auto;font:700 14px/1.3 'Comic Neue',system-ui,sans-serif;color:var(--ink)}
+  #settings.open{display:flex}
+  .sp{width:min(900px,94vw);max-height:92vh;display:flex;flex-direction:column;background:#fff;
+    border:4px solid var(--ink);border-radius:16px;box-shadow:10px 10px 0 #ff2bd6;overflow:hidden}
+  .sp-head{padding:14px 20px 10px;border-bottom:4px solid var(--ink);
+    background:radial-gradient(circle,rgba(0,0,0,.12) 1.2px,transparent 1.7px) 0 0/8px 8px,#fff27a}
+  .sp-head h2{margin:0;font:34px/1 'Bangers',sans-serif;letter-spacing:2px;transform:rotate(-1deg)}
+  .sp-head p{margin:6px 0 0;font-size:13px}
+  .sp-body{overflow:auto;padding:16px 20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+  .sp-sec{border:3px solid var(--ink);border-radius:12px;padding:10px 12px 12px;background:#fafaff;box-shadow:4px 4px 0 var(--ink)}
+  .sp-sec h3{margin:-2px 0 8px;font:21px/1 'Bangers',sans-serif;letter-spacing:1.5px;color:#7a2cff}
+  .sp-f{margin:0 0 10px}
+  .sp-f:last-child{margin-bottom:0}
+  .sp-f label{display:block;margin-bottom:3px}
+  .sp-f input[type=text],.sp-f input[type=password],.sp-f input[type=number],.sp-f textarea{
+    width:100%;box-sizing:border-box;font:600 14px 'Comic Neue',system-ui,sans-serif;padding:6px 8px;
+    border:2.5px solid var(--ink);border-radius:8px;background:#fff;color:var(--ink)}
+  .sp-f textarea{min-height:58px;resize:vertical}
+  .sp-f input:focus,.sp-f textarea:focus{outline:3px solid #00e5ff;outline-offset:1px}
+  .sp-f input:disabled,.sp-f textarea:disabled{background:#eee;color:#666}
+  .sp-f small{display:block;margin-top:3px;font-weight:700;font-size:12px;color:#555}
+  .sp-f small.url{color:#c2185b}
+  .sp-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .sp-row label{margin:0}
+  .sw{position:relative;width:46px;height:26px;flex:none}
+  .sw input{opacity:0;width:100%;height:100%;margin:0;position:absolute;cursor:pointer;z-index:1}
+  .sw i{position:absolute;inset:0;border:2.5px solid var(--ink);border-radius:20px;background:#ddd;transition:background .15s}
+  .sw i::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;
+    background:#fff;border:2px solid var(--ink);transition:transform .15s}
+  .sw input:checked + i{background:#39ff88}
+  .sw input:checked + i::after{transform:translateX(19px)}
+  .sw input:disabled + i{opacity:.5}
+  .sp-foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 20px;border-top:4px solid var(--ink);background:#f3f0ff}
+  .sp-foot .grow{flex:1}
+  .sp-btn{font:19px/1 'Bangers',sans-serif;letter-spacing:1px;padding:8px 14px 7px;border:3px solid var(--ink);
+    border-radius:10px;background:#fff;box-shadow:3px 3px 0 var(--ink);cursor:pointer;color:var(--ink)}
+  .sp-btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
+  .sp-btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+  .sp-btn.go{background:#39ff88}
+  .sp-btn.warn{background:#ffd0e4}
+  .sp-msg{font-size:13px;color:#7a2cff;min-height:1em}
+  .sp-link{width:100%;font:12px monospace;padding:6px;border:2px solid var(--ink);border-radius:6px;display:none}
 </style>
 </head>
 <body>
@@ -268,37 +303,84 @@
 
 <script>
 (() => {
-  // ---------------- config ----------------
+  // ---------------- settings (saved locally; URL parameters override) ----------------
+  const STORE_KEY = 'raveCats.settings.v1';
+  const FIELDS = [
+    { sec: 'Chat sources' },
+    { k: 'channel', label: 'Twitch channel', type: 'text', def: '', ph: 'yourchannel', help: 'Read anonymously, no login needed.' },
+    { k: 'tiktok', label: 'TikTok bridge', type: 'text', def: '', ph: '1 = TikFinity, or ws://…', help: 'TikTok needs a local bridge app. "1" uses TikFinity on this PC.' },
+    { k: 'youtube', label: 'YouTube live', type: 'text', def: '', ph: 'video ID / link, or ws://…', help: 'A live video ID or link (needs the API key below), or a bridge address.' },
+    { k: 'ytkey', label: 'YouTube API key', type: 'password', def: '', help: 'YouTube Data API v3 key from Google Cloud Console.' },
+    { k: 'ytpoll', label: 'YouTube check every (s)', type: 'num', def: 6, min: 2, max: 60, step: 1, help: 'Lower = snappier, but uses the daily API quota faster.' },
+    { k: 'demo', label: 'Demo chat', type: 'bool', def: false, help: 'Fake chatters. Also runs on its own when no source is set.' },
+    { sec: 'Cats' },
+    { k: 'size', label: 'Cat size (px)', type: 'num', def: 120, min: 50, max: 300, step: 5 },
+    { k: 'bpm', label: 'Dance tempo (BPM)', type: 'num', def: 126, min: 40, max: 220, step: 1 },
+    { k: 'max', label: 'Max cats on screen', type: 'num', def: 12, min: 1, max: 40, step: 1, help: 'Also limited by how many fit across.' },
+    { k: 'linger', label: 'Stay after talking (s)', type: 'num', def: 0.6, min: 0, max: 15, step: 0.1 },
+    { k: 'xmin', label: 'Stage left edge (%)', type: 'num', def: 0, min: 0, max: 100, step: 1 },
+    { k: 'xmax', label: 'Stage right edge (%)', type: 'num', def: 100, min: 0, max: 100, step: 1, help: 'Keep cats out from under a facecam, etc.' },
+    { k: 'ground', label: 'Distance from bottom (px)', type: 'num', def: 6, min: -40, max: 600, step: 1 },
+    { sec: 'Speech bubbles' },
+    { k: 'hold', label: 'Bubble time ×', type: 'num', def: 1, min: 0.3, max: 5, step: 0.1, help: 'Multiplier for how long messages stay up.' },
+    { k: 'maxchars', label: 'Max message length', type: 'num', def: 150, min: 20, max: 500, step: 5 },
+    { k: 'badges', label: 'Show badges', type: 'bool', def: true, help: 'Twitch badges; owner / mod / member / sub / follower badges on YouTube and TikTok.' },
+    { k: 'pronouns', label: 'Show pronouns', type: 'bool', def: true, help: 'Twitch chatters who set them on pronouns.alejo.io.' },
+    { k: 'extemotes', label: 'BTTV / FFZ / 7TV emotes', type: 'bool', def: true },
+    { k: 'twitchid', label: 'Twitch user ID', type: 'text', def: '', ph: 'only if no Twitch channel', help: 'For your channel\'s BTTV/FFZ/7TV emotes when the Twitch channel is empty.' },
+    { sec: 'Filtering' },
+    { k: 'cmds', label: 'Show !commands', type: 'bool', def: false },
+    { k: 'firsttime', label: 'Show first-time chatters', type: 'bool', def: false, help: 'Twitch flags these; spam bots usually show up this way.' },
+    { k: 'botlist', label: 'Hide known bots', type: 'bool', def: true, help: 'Public TwitchInsights list (needs the overlay hosted, not a local file).' },
+    { k: 'ignore', label: 'Always hide these users', type: 'area', def: 'nightbot, streamelements, streamlabs, moobot, fossabot, wizebot', help: 'Comma or line separated.' },
+    { sec: 'Effects' },
+    { k: 'ambient', label: 'Glowing dance floor', type: 'bool', def: true },
+    { k: 'sfx', label: 'Comic POW! bursts', type: 'bool', def: true },
+    { k: 'sparks', label: 'Glowstick sparkles', type: 'bool', def: true },
+  ];
+  const FIELD = Object.fromEntries(FIELDS.filter(f => f.k).map(f => [f.k, f]));
   const Q = new URLSearchParams(location.search);
-  const num = (k, d) => { const v = parseFloat(Q.get(k)); return isNaN(v) ? d : v; };
+  function coerce(f, v) {
+    if (f.type === 'bool') return v === true || v === 1 || /^(1|true|yes|on)$/i.test(String(v));
+    if (f.type === 'num') { const n = parseFloat(v); return isNaN(n) ? f.def : Math.min(f.max, Math.max(f.min, n)); }
+    return String(v ?? '');
+  }
+  let saved = {}, storageOK = true;
+  try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {}; } catch (e) { storageOK = false; }
+  const fromURL = {};
+  for (const f of Object.values(FIELD)) if (Q.has(f.k)) fromURL[f.k] = coerce(f, Q.get(f.k));
+  const S = {};
+  for (const f of Object.values(FIELD)) S[f.k] = f.k in fromURL ? fromURL[f.k] : f.k in saved ? coerce(f, saved[f.k]) : f.def;
+
+  const tk = S.tiktok.trim();
   const CFG = {
-    channel: (Q.get('channel') || '').replace(/^#/, '').toLowerCase().trim(),
-    tiktok: Q.get('tiktok') === '1' ? 'ws://localhost:21213/' : (Q.get('tiktok') || ''),
-    youtube: (Q.get('youtube') || '').trim(),
-    ytkey: (Q.get('ytkey') || '').trim(),
-    ytpoll: num('ytpoll', 6) * 1000,
-    size: num('size', 120),
-    bpm: num('bpm', 126),
-    linger: num('linger', 0.6) * 1000,
-    max: num('max', 12),
-    maxChars: num('maxchars', 150),
-    hold: num('hold', 1),
-    xmin: num('xmin', 0) / 100,
-    xmax: num('xmax', 100) / 100,
-    ground: num('ground', 6),
-    ignore: new Set((Q.get('ignore') || 'nightbot,streamelements,streamlabs,moobot,fossabot,wizebot')
-              .toLowerCase().split(',').map(s => s.trim()).filter(Boolean)),
-    cmds: Q.get('cmds') === '1',
-    botlist: Q.get('botlist') !== '0',
-    extemotes: Q.get('extemotes') !== '0',
-    twitchid: (Q.get('twitchid') || '').trim(),
-    pronouns: Q.get('pronouns') !== '0',
-    firsttime: Q.get('firsttime') === '1',
-    ambient: Q.get('ambient') !== '0',
-    sfx: Q.get('sfx') !== '0',
-    sparks: Q.get('sparks') !== '0',
+    channel: S.channel.replace(/^#/, '').toLowerCase().trim(),
+    tiktok: tk === '1' ? 'ws://localhost:21213/' : tk,
+    youtube: S.youtube.trim(),
+    ytkey: S.ytkey.trim(),
+    ytpoll: S.ytpoll * 1000,
+    size: S.size,
+    bpm: S.bpm,
+    linger: S.linger * 1000,
+    max: S.max,
+    maxChars: S.maxchars,
+    hold: S.hold,
+    xmin: Math.min(S.xmin, S.xmax) / 100,
+    xmax: Math.max(S.xmin, S.xmax) / 100,
+    ground: S.ground,
+    ignore: new Set(S.ignore.toLowerCase().split(/[\s,]+/).filter(Boolean)),
+    cmds: S.cmds,
+    botlist: S.botlist,
+    extemotes: S.extemotes,
+    twitchid: S.twitchid.trim(),
+    pronouns: S.pronouns,
+    badges: S.badges,
+    firsttime: S.firsttime,
+    ambient: S.ambient,
+    sfx: S.sfx,
+    sparks: S.sparks,
   };
-  CFG.demo = Q.get('demo') === '1' || (!CFG.channel && !CFG.tiktok && !CFG.youtube);
+  CFG.demo = S.demo || (!CFG.channel && !CFG.tiktok && !CFG.youtube);
 
   const BEAT = 60 / CFG.bpm;
   const root = document.documentElement;
@@ -819,11 +901,11 @@
     wrap._redraw = draw; // redraw once web fonts load
   }
 
-  function speak(cat, tokens, kind) {
+  function speak(cat, tokens, kind, badges = []) {
     cat.last = Date.now();
     clearTimeout(cat.exitTimer);
     if (cat.speaking) {
-      if (cat.queue.length < 3) cat.queue.push([tokens, kind]);
+      if (cat.queue.length < 3) cat.queue.push([tokens, kind, badges]);
       return;
     }
     const words = toWords(tokens);
@@ -873,7 +955,13 @@
     const chars = Array.from(cat.name);
     const nm = document.createElement('span');
     nm.textContent = chars.length > 22 ? chars.slice(0, 21).join('') + '…' : cat.name;
-    cap.append(dot, nm);
+    cap.append(dot);
+    if (badges && badges.length) {
+      const bw = document.createElement('span'); bw.className = 'badges';
+      badges.slice(0, 5).forEach(b => { const el = badgeEl(b); if (el) bw.appendChild(el); });
+      cap.appendChild(bw);
+    }
+    cap.append(nm);
     const fitCap = () => {
       const minW = Math.ceil(cap.offsetWidth + 24);
       face.style.minWidth = minW + 'px';
@@ -914,7 +1002,7 @@
           cat.last = Date.now();
           const next = cat.queue.shift();
           if (cat.leaving) return;
-          if (next) setTimeout(() => speak(cat, next[0], next[1]), 150);
+          if (next) setTimeout(() => speak(cat, next[0], next[1], next[2]), 150);
           else cat.exitTimer = setTimeout(() => leave(cat), CFG.linger); // only on screen while talking
         }, 360);
       }, words.length * 45 + 500);
@@ -922,7 +1010,7 @@
   }
 
   // ---------------- entry point for all chat sources ----------------
-  function handleChat({ name, login, text, tokens, color, platform = 'custom', action = false }) {
+  function handleChat({ name, login, text, tokens, color, platform = 'custom', action = false, badges = [] }) {
     if (!name) return;
     const lower = name.toLowerCase();
     if (CFG.ignore.has(lower)) return;
@@ -936,11 +1024,11 @@
 
     const key = platform + ':' + lower;
     const cat = cats.get(key);
-    if (cat) { speak(cat, tokens, kind); return; }
+    if (cat) { speak(cat, tokens, kind, badges); return; }
     const wait = pending.get(key);
-    if (wait) { if (wait.msgs.length < 3) wait.msgs.push([tokens, kind]); return; }
+    if (wait) { if (wait.msgs.length < 3) wait.msgs.push([tokens, kind, badges]); return; }
     const pronP = platform === 'twitch' && CFG.pronouns ? pronounsFor((login || name).toLowerCase()) : null;
-    pending.set(key, { name, color, platform, pronP, msgs: [[tokens, kind]], since: Date.now() });
+    pending.set(key, { name, color, platform, pronP, msgs: [[tokens, kind, badges]], since: Date.now() });
     trySpawn(key);
   }
 
@@ -958,7 +1046,7 @@
       if (w.pronP) { cat.pronP = w.pronP; w.pronP.then(t => { cat.pronouns = t; }); }
       const [first, ...rest] = w.msgs;
       cat.queue.push(...rest);
-      setTimeout(() => speak(cat, first[0], first[1]), 450);
+      setTimeout(() => speak(cat, first[0], first[1], first[2]), 450);
       return;
     }
     const now = Date.now();
@@ -1014,6 +1102,91 @@
       i = r.b + 1;
     }
     if (i < chars.length) out.push({ t: 'text', v: chars.slice(i).join('') });
+    return out;
+  }
+
+  // ---------------- badges ----------------
+  // Twitch badge art comes from the public IVR API (global + channel, incl. sub-month badges).
+  // If that's unreachable, the common global badges use Twitch's CDN directly, and anything
+  // else falls back to a built-in comic badge. YouTube/TikTok send roles, not images, so they
+  // use the built-in badges.
+  const twBadges = { global: {}, channel: {} };
+  const TW_BADGE_UUID = {
+    broadcaster: '5527c58c-fb7d-422d-b71b-f309dcb85cc1', moderator: '3267646d-33f0-4b17-b3df-f923a41db1d0',
+    vip: 'b817aba4-fad8-49e2-b88a-7cc744dfa6ec', subscriber: '5d9f2208-5dd8-11e7-8513-2ff4adfae661',
+    founder: '511b78a9-ab37-472f-9569-457753bbe7d3', partner: 'd12a2e27-16f6-41d0-ab77-b780518f00a3',
+    staff: 'd97c37bd-a6f5-4c38-8f57-4e4bef88af34', premium: 'bbbe0db0-a598-423e-86d0-f9fb98ca1933',
+    turbo: 'bd444ec6-8f34-4bf9-91f4-af1e3428d80f', 'artist-badge': '4300a897-03dc-4e83-8c0e-c332fee7057f',
+  };
+  const TW_ROLE = { broadcaster: 'owner', moderator: 'mod', lead_moderator: 'mod', vip: 'vip', subscriber: 'sub',
+    founder: 'founder', partner: 'verified', staff: 'staff', admin: 'staff', 'artist-badge': 'artist' };
+  const ICONS = {
+    owner:    { c: '#e91916', g: '<path d="M3 5.5h6.5v5H3z M9.5 7.6l3.3-2v4.8l-3.3-2z" fill="#fff"/>' },
+    mod:      { c: '#00ad03', g: '<path d="M12.5 3.5l-6.3 6.3M4.5 8.6l2.9 2.9M5.3 10.7l-2 2" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>' },
+    vip:      { c: '#e005b9', g: '<path d="M8 3 12.8 7 8 13 3.2 7z" fill="#fff"/>' },
+    sub:      { c: '#9146ff', g: '<path d="M8 2.6l1.7 3.4 3.7.5-2.7 2.6.7 3.7L8 11l-3.4 1.8.7-3.7L2.6 6.5l3.7-.5z" fill="#fff"/>' },
+    founder:  { c: '#e8a90c', g: '<path d="M8 2.6l1.7 3.4 3.7.5-2.7 2.6.7 3.7L8 11l-3.4 1.8.7-3.7L2.6 6.5l3.7-.5z" fill="#fff"/>' },
+    member:   { c: '#2ba640', g: '<path d="M8 2.6l1.7 3.4 3.7.5-2.7 2.6.7 3.7L8 11l-3.4 1.8.7-3.7L2.6 6.5l3.7-.5z" fill="#fff"/>' },
+    verified: { c: '#5b8cff', g: '<path d="M4.2 8.3l2.6 2.6 5-5.4" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' },
+    staff:    { c: '#222', g: '<path d="M10.6 3a2.6 2.6 0 0 0-2.4 3.5L3.4 11.3l1.3 1.3 4.8-4.8A2.6 2.6 0 0 0 13 5.4l-1.6 1-1.3-1.3 1-1.6z" fill="#fff"/>' },
+    artist:   { c: '#1f69ff', g: '<path d="M4 12l1-3 6-6 2 2-6 6z" fill="#fff"/>' },
+    follower: { c: '#fe2c55', g: '<path d="M8 13s-5-3.1-5-6.5C3 4.6 4.3 3.5 5.7 3.5c1 0 1.8.6 2.3 1.4.5-.8 1.3-1.4 2.3-1.4 1.4 0 2.7 1.1 2.7 3C13 9.9 8 13 8 13z" fill="#fff"/>' },
+    friend:   { c: '#25c4d8', g: '<path d="M6 12s-3.6-2.3-3.6-4.8C2.4 5.8 3.3 5 4.3 5c.7 0 1.3.4 1.7 1 .4-.6 1-1 1.7-1 1 0 1.9.8 1.9 2.2C9.6 9.7 6 12 6 12zM10.5 10.5s2.6-1.7 2.6-3.5c0-1-.7-1.6-1.4-1.6" fill="#fff" stroke="#fff" stroke-width=".6"/>' },
+    gifter:   { c: '#ffb800', g: '<path d="M5 3h6v2.6a3 3 0 0 1-6 0z M8 8.6v2.2 M5.5 12.8h5" fill="#fff" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>' },
+  };
+  function iconSVG(role, label) {
+    const ic = ICONS[role]; if (!ic) return null;
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 16 16');
+    svg.innerHTML = `<rect x=".9" y=".9" width="14.2" height="14.2" rx="3.5" fill="${ic.c}" stroke="#111" stroke-width="1.8"/>${ic.g}`
+      + (label ? `<text x="12.6" y="15" font-size="6.5" font-weight="900" fill="#111" stroke="#fff" stroke-width="1.6" paint-order="stroke" text-anchor="middle" font-family="sans-serif">${label}</text>` : '');
+    return svg;
+  }
+  function badgeEl(b) {
+    if (b.url) {
+      const img = document.createElement('img');
+      img.src = b.url; img.alt = '';
+      img.onerror = () => { const f = iconSVG(b.role); if (f) img.replaceWith(f); else img.remove(); };
+      return img;
+    }
+    return iconSVG(b.role, b.label);
+  }
+  function fillBadges(dst, list) {
+    const arr = Array.isArray(list) ? list : (list && (list.data || list.badges)) || [];
+    arr.forEach(set => {
+      const m = dst[set.set_id] = dst[set.set_id] || {};
+      (set.versions || []).forEach(v => { m[v.id] = v.image_url_2x || v.image_url_1x || v.image_url_4x; });
+    });
+  }
+  async function loadTwitchBadges(login) {
+    await Promise.allSettled([
+      getJSON('https://api.ivr.fi/v2/twitch/badges/global').then(j => fillBadges(twBadges.global, j)),
+      login ? getJSON(`https://api.ivr.fi/v2/twitch/badges/channel?login=${encodeURIComponent(login)}`).then(j => fillBadges(twBadges.channel, j)) : null,
+    ]);
+  }
+  function twitchBadges(tag) {
+    if (!CFG.badges || !tag) return [];
+    return tag.split(',').filter(Boolean).map(b => {
+      const [set, ver] = b.split('/');
+      const g = twBadges.global[set] || {}, c = twBadges.channel[set] || {};
+      const url = c[ver] || g[ver] || (TW_BADGE_UUID[set] ? `https://static-cdn.jtvnw.net/badges/v1/${TW_BADGE_UUID[set]}/2` : null);
+      return { url, role: TW_ROLE[set] };
+    }).filter(b => b.url || b.role);
+  }
+  function roleBadges(d) {
+    if (!CFG.badges || !d) return [];
+    const out = [];
+    if (d.isChatOwner || d.isOwner || d.isStreamer || d.isBroadcaster) out.push({ role: 'owner' });
+    if (d.isChatModerator || d.isModerator || d.isMod) out.push({ role: 'mod' });
+    if (d.isChatSponsor || d.isMember) out.push({ role: 'member' });
+    if (d.isSubscriber) out.push({ role: 'sub' });
+    if (d.isVerified) out.push({ role: 'verified' });
+    if (d.followRole === 2) out.push({ role: 'friend' }); else if (d.followRole === 1) out.push({ role: 'follower' });
+    if (d.topGifterRank >= 1 && d.topGifterRank <= 3) out.push({ role: 'gifter', label: String(d.topGifterRank) });
+    const imgs = (Array.isArray(d.userBadges) ? d.userBadges : Array.isArray(d.badges) ? d.badges : [])
+      .map(b => typeof b === 'string' ? b : b && (b.url || b.imageUrl || b.image)).filter(u => typeof u === 'string' && /^https?:/.test(u));
+    imgs.slice(0, 2).forEach(url => out.push({ url }));
     return out;
   }
 
@@ -1111,6 +1284,7 @@
             name: tags['display-name'] || m[2],
             text: msg,
             login: m[2],
+            badges: twitchBadges(tags.badges),
             tokens: twitchTokens(msg, tags),
             color: tags.color,
             platform: 'twitch',
@@ -1143,7 +1317,7 @@
       const name = d.nickname || d.uniqueId || d.displayName || d.chatname ||
                    (d.user && (d.user.nickname || d.user.uniqueId || d.user.name)) || d.username;
       const text = d.comment || d.message || d.text || d.chatmessage;
-      if (name && typeof text === 'string') handleChat({ name, text, color: d.color, platform, tokens: bridgeTokens(text, d.emotes) });
+      if (name && typeof text === 'string') handleChat({ name, text, color: d.color, platform, tokens: bridgeTokens(text, d.emotes), badges: roleBadges(d) });
     };
     ws.onclose = () => setTimeout(() => connectBridge(url, platform), 3000);
     ws.onerror = () => {};
@@ -1203,6 +1377,7 @@
               name: it.authorDetails.displayName,
               text: it.snippet.displayMessage,
               platform: 'youtube',
+              badges: roleBadges(it.authorDetails),
             }), (i / Math.max(1, items.length)) * wait * .8));
           }
           first = false; // skip backlog on connect
@@ -1256,6 +1431,140 @@
     setTimeout(loadBotList, 6 * 3600 * 1000); // refresh every 6 hours
   }
 
+  // ---------------- settings window ----------------
+  // Open it from OBS: right-click the source → Interact, move the mouse, click the gear.
+  (function settingsUI() {
+    const gear = document.createElement('button');
+    gear.id = 'gear'; gear.title = 'Rave Cat settings';
+    gear.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm9 3.5-2.2-.8a7 7 0 0 0-.6-1.5l1-2.1-1.8-1.8-2.1 1a7 7 0 0 0-1.5-.6L13 2h-2l-.8 2.2a7 7 0 0 0-1.5.6l-2.1-1-1.8 1.8 1 2.1a7 7 0 0 0-.6 1.5L3 11v2l2.2.8c.1.5.3 1 .6 1.5l-1 2.1 1.8 1.8 2.1-1c.5.3 1 .5 1.5.6L11 22h2l.8-2.2a7 7 0 0 0 1.5-.6l2.1 1 1.8-1.8-1-2.1c.3-.5.5-1 .6-1.5L21 13z" fill="#111"/></svg>';
+    document.body.appendChild(gear);
+
+    const panel = document.createElement('div');
+    panel.id = 'settings';
+    panel.innerHTML = `<div class="sp" role="dialog" aria-label="Rave Cat settings">
+      <div class="sp-head"><h2>Rave Cat Chat — Settings</h2>
+        <p>Saved in this browser source and applied when you press <b>Save &amp; apply</b>. Heads up: this window shows on stream while it's open.</p></div>
+      <div class="sp-body"></div>
+      <div class="sp-foot">
+        <button class="sp-btn" data-act="test">Test message</button>
+        <button class="sp-btn" data-act="link">Copy setup link</button>
+        <button class="sp-btn warn" data-act="reset">Reset</button>
+        <span class="sp-msg grow"></span>
+        <button class="sp-btn" data-act="close">Cancel</button>
+        <button class="sp-btn go" data-act="save">Save &amp; apply</button>
+        <input class="sp-link" readonly>
+      </div></div>`;
+    document.body.appendChild(panel);
+    const body = panel.querySelector('.sp-body'), msg = panel.querySelector('.sp-msg'), linkBox = panel.querySelector('.sp-link');
+    const inputs = {};
+
+    let sec = null;
+    for (const f of FIELDS) {
+      if (f.sec) {
+        sec = document.createElement('div'); sec.className = 'sp-sec';
+        const h = document.createElement('h3'); h.textContent = f.sec; sec.appendChild(h);
+        body.appendChild(sec); continue;
+      }
+      const wrapF = document.createElement('div'); wrapF.className = 'sp-f';
+      const id = 'sp-' + f.k;
+      const lab = document.createElement('label'); lab.htmlFor = id; lab.textContent = f.label;
+      let inp;
+      if (f.type === 'bool') {
+        const row = document.createElement('div'); row.className = 'sp-row';
+        const sw = document.createElement('span'); sw.className = 'sw';
+        inp = document.createElement('input'); inp.type = 'checkbox';
+        sw.append(inp, document.createElement('i'));
+        row.append(lab, sw); wrapF.appendChild(row);
+      } else {
+        inp = document.createElement(f.type === 'area' ? 'textarea' : 'input');
+        if (f.type !== 'area') inp.type = f.type === 'num' ? 'number' : f.type;
+        if (f.type === 'num') { inp.min = f.min; inp.max = f.max; inp.step = f.step; }
+        if (f.ph) inp.placeholder = f.ph;
+        inp.spellcheck = false; inp.autocomplete = 'off';
+        wrapF.append(lab, inp);
+      }
+      inp.id = id;
+      if (f.help) { const sm = document.createElement('small'); sm.textContent = f.help; wrapF.appendChild(sm); }
+      if (f.k in fromURL) {
+        inp.disabled = true;
+        const sm = document.createElement('small'); sm.className = 'url';
+        sm.textContent = 'Set by the source URL, which overrides this.';
+        wrapF.appendChild(sm);
+      }
+      inputs[f.k] = inp;
+      sec.appendChild(wrapF);
+    }
+
+    const fill = (vals) => {
+      for (const [k, inp] of Object.entries(inputs)) {
+        const v = vals[k];
+        if (FIELD[k].type === 'bool') inp.checked = !!v; else inp.value = v;
+      }
+    };
+    const read = () => {
+      const out = {};
+      for (const [k, inp] of Object.entries(inputs)) {
+        const f = FIELD[k];
+        out[k] = coerce(f, f.type === 'bool' ? inp.checked : inp.value);
+      }
+      return out;
+    };
+    const open = () => { fill(S); msg.textContent = storageOK ? '' : 'This browser source can\'t save settings — use "Copy setup link" instead.'; linkBox.style.display = 'none'; panel.classList.add('open'); };
+    const close = () => panel.classList.remove('open');
+
+    gear.addEventListener('click', open);
+    panel.addEventListener('mousedown', e => { if (e.target === panel) close(); });
+    addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+
+    panel.querySelector('.sp-foot').addEventListener('click', e => {
+      const act = e.target.dataset && e.target.dataset.act;
+      if (!act) return;
+      if (act === 'close') close();
+      if (act === 'test') {
+        const n = ['TestKitty', 'SettingsCat', 'PreviewPurr', 'DemoMeow'][Math.floor(Math.random() * 4)];
+        window.raveCats.say(n, 'This is how chat will look! 🎶', { platform: CFG.channel ? 'twitch' : CFG.youtube ? 'youtube' : CFG.tiktok ? 'tiktok' : 'custom' });
+        msg.textContent = 'Sent a test message (uses the settings currently running).';
+      }
+      if (act === 'reset') {
+        const d = {}; for (const f of Object.values(FIELD)) d[f.k] = f.def;
+        fill(d); msg.textContent = 'Defaults filled in — press Save & apply to keep them.';
+      }
+      if (act === 'link') {
+        const vals = read(), q = new URLSearchParams();
+        for (const f of Object.values(FIELD)) {
+          const v = vals[f.k];
+          if (v === f.def) continue;
+          q.set(f.k, f.type === 'bool' ? (v ? '1' : '0') : String(v));
+        }
+        const link = location.href.split(/[?#]/)[0] + (q.toString() ? '?' + q.toString() : '');
+        linkBox.value = link; linkBox.style.display = 'block'; linkBox.select();
+        const done = () => { msg.textContent = 'Setup link copied' + (vals.ytkey ? ' (it includes your YouTube API key — keep it private).' : '.'); };
+        try { navigator.clipboard.writeText(link).then(done, () => { document.execCommand('copy'); done(); }); }
+        catch (err) { try { document.execCommand('copy'); done(); } catch (e2) { msg.textContent = 'Copy the link from the box below.'; } }
+      }
+      if (act === 'save') {
+        try {
+          const vals = read();
+          // fields locked by the URL keep whatever was saved before (the URL value isn't a choice made here)
+          for (const k in fromURL) { if (k in saved) vals[k] = coerce(FIELD[k], saved[k]); else delete vals[k]; }
+          localStorage.setItem(STORE_KEY, JSON.stringify(vals));
+          msg.textContent = 'Saved! Reloading…';
+          setTimeout(() => location.reload(), 250);
+        } catch (err) {
+          msg.textContent = 'Couldn\'t save here — use "Copy setup link" and paste it as the source URL.';
+        }
+      }
+    });
+
+    // gear only appears while a mouse is over the overlay (i.e. in OBS's Interact window)
+    let mt;
+    addEventListener('mousemove', () => {
+      document.body.classList.add('mouse');
+      clearTimeout(mt); mt = setTimeout(() => document.body.classList.remove('mouse'), 3000);
+    });
+    document.addEventListener('mouseleave', () => document.body.classList.remove('mouse'));
+  })();
+
   // ---------------- boot ----------------
   if (CFG.botlist) loadBotList();
   if (CFG.extemotes) {
@@ -1266,6 +1575,7 @@
   let rt;
   addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(buildSlots, 200); });
   if (CFG.channel) connectTwitch(CFG.channel);
+  if (CFG.badges && (CFG.channel || CFG.twitchid)) loadTwitchBadges(CFG.channel);
   if (CFG.tiktok) connectBridge(CFG.tiktok, 'tiktok');
   if (CFG.youtube) {
     if (/^wss?:\/\//i.test(CFG.youtube)) connectBridge(CFG.youtube, 'youtube');
