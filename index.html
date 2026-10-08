@@ -1,1 +1,1279 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Rave Cat Chat</title>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
+<!--
+  RAVE CAT CHAT — OBS Browser Source overlay
+  ------------------------------------------------------------
+  Add as a Browser Source (e.g. 1920x1080), transparent background is automatic.
 
+  URL parameters (append to the file path, e.g. file:///C:/overlays/rave-cats-overlay.html?channel=yourname):
+    channel=NAME        Twitch channel to read (anonymous, no login needed)
+    tiktok=URL          WebSocket for TikTok chat via a local bridge.
+                        tiktok=1 uses TikFinity's default ws://localhost:21213/
+    youtube=VIDEO_ID    YouTube live chat via the YouTube Data API (also needs ytkey)
+      ytkey=API_KEY     A YouTube Data API v3 key (free from Google Cloud Console)
+      ytpoll=6          Seconds between polls (API quota: ~5 units per poll, 10,000/day free)
+    youtube=ws://...    OR point YouTube at a local WebSocket bridge instead of the API
+    Any combination works: ?channel=me&tiktok=1&youtube=abc123&ytkey=XYZ
+    demo=1              Fake chat for testing (auto-on if no source is given)
+    size=120            Cat width in px
+    bpm=126             Dance tempo (all cats dance on the same beat)
+    linger=0.6          Seconds a cat stays after its bubble fades before ducking away
+    max=12              Max cats on screen (also limited by screen width)
+    maxchars=150        Truncate long messages
+    hold=1              Multiplier for how long bubbles stay up
+    xmin=0&xmax=100     Horizontal range (percent) cats may stand in
+    ground=6            Distance from bottom edge in px
+    ignore=nightbot,streamelements   Users to hide
+    cmds=1              Show !commands (hidden by default)
+    extemotes=0         Don't load BTTV / FFZ / 7TV emotes (loaded by default: global + your channel's)
+    twitchid=ID         Twitch user ID for channel BTTV/FFZ/7TV emotes when you're not using channel=
+    pronouns=0          Don't show Twitch pronouns (from pronouns.alejo.io; shown by default)
+    botlist=0           Don't load the public Twitch known-bot list (TwitchInsights); loaded by default
+    firsttime=1         Show Twitch first-time chatters (hidden by default, where the platform flags them —
+                        Twitch does; TikTok and YouTube don't say, so they always show)
+    ambient=0           Turn off the floor glow strip
+    sfx=0               Turn off the comic "POW!" bursts
+    sparks=0            Turn off glowstick sparkles
+
+  Custom integrations (Streamer.bot, etc.) can also call:
+    window.raveCats.say("name", "message", { color: "#ff00aa", platform: "twitch" })
+-->
+<style>
+  :root{
+    --ink:#111;
+    --beat:.476s;
+    --size:120px;
+    --ground:6px;
+  }
+  html,body{margin:0;height:100%;background:transparent;overflow:hidden;}
+  #stage{position:fixed;inset:0;pointer-events:none;font-family:'Comic Neue',system-ui,sans-serif;}
+
+  /* ---------- ambient floor (only lit while cats are on stage) ---------- */
+  #floor{position:absolute;inset:0;opacity:0;transition:opacity .7s ease}
+  #stage.has-cats #floor{opacity:1}
+  #ambient{
+    position:absolute;left:0;right:0;bottom:0;height:90px;opacity:.22;
+    background:
+      radial-gradient(circle,rgba(255,255,255,.9) 1.3px,transparent 1.8px) 0 0/9px 9px,
+      linear-gradient(90deg,#ff2bd6,#7a5cff,#00e5ff,#39ff88,#ffe600,#ff2bd6);
+    background-size:9px 9px,300% 100%;
+    -webkit-mask-image:linear-gradient(to top,#000 0%,transparent 100%);
+    mask-image:linear-gradient(to top,#000 0%,transparent 100%);
+    animation:ambientShift 18s linear infinite, ambientPulse var(--beat) infinite ease-out;
+  }
+  @keyframes ambientShift{to{background-position:0 0,300% 0}}
+  @keyframes ambientPulse{0%{opacity:.3}100%{opacity:.16}}
+
+  /* ---------- cats ---------- */
+  .cat{
+    position:absolute;bottom:var(--ground);
+    width:var(--size);height:calc(var(--size)*1.12);
+    margin-left:calc(var(--size)*-.5);
+    animation:catIn .7s cubic-bezier(.2,1.4,.4,1) both;
+    z-index:5;
+  }
+  .cat.leaving{animation:catOut .8s cubic-bezier(.5,-.4,.8,.6) forwards;}
+  @keyframes catIn{
+    0%{transform:translateY(120%) scale(.5) rotate(-10deg);opacity:0}
+    55%{transform:translateY(-14%) scale(1.08,.95) rotate(4deg);opacity:1}
+    75%{transform:translateY(3%) scale(.97,1.04)}
+    100%{transform:none}
+  }
+  @keyframes catOut{
+    0%{transform:none;opacity:1}
+    30%{transform:translateY(-22%) rotate(-8deg) scale(1.05)}
+    100%{transform:translateY(140%) rotate(14deg) scale(.6);opacity:0}
+  }
+
+  .floorglow{
+    position:absolute;left:-35%;width:170%;bottom:-14px;height:34px;border-radius:50%;
+    background:radial-gradient(ellipse at center,var(--ga) 0%,transparent 70%);
+    animation:floorPulse var(--beat) var(--sync) infinite ease-out;
+  }
+  @keyframes floorPulse{0%{transform:scale(1.15);opacity:1}100%{transform:scale(.85);opacity:.45}}
+
+  .dancer{position:absolute;inset:0;transform-origin:50% 100%;
+    animation-duration:var(--beat);animation-delay:var(--sync);
+    animation-iteration-count:infinite;animation-timing-function:ease-in-out;}
+  .d0{animation-name:bounce}
+  .d1{animation-name:sway;animation-duration:calc(var(--beat)*2)}
+  .d2{animation-name:hop}
+  @keyframes bounce{
+    0%,100%{transform:translateY(0) scale(1.07,.92)}
+    50%{transform:translateY(calc(var(--size)*-.13)) scale(.95,1.06)}
+  }
+  @keyframes sway{
+    0%,100%{transform:translateX(-5%) rotate(-7deg) scale(1.05,.93)}
+    25%,75%{transform:translateY(calc(var(--size)*-.12)) scale(.96,1.05)}
+    50%{transform:translateX(5%) rotate(7deg) scale(1.05,.93)}
+  }
+  @keyframes hop{
+    0%,100%{transform:translateY(0) scale(1.1,.88)}
+    35%{transform:translateY(calc(var(--size)*-.2)) scale(.93,1.08) rotate(-3deg)}
+    65%{transform:translateY(0) scale(1.04,.96) rotate(2deg)}
+  }
+
+  .dancer svg{width:100%;height:100%;overflow:visible;display:block}
+  #stage.sync .dancer svg{animation:syncSpin calc(var(--beat)*2) cubic-bezier(.4,0,.2,1)}
+  @keyframes syncSpin{
+    0%{transform:none}
+    40%{transform:translateY(-30%) rotate(180deg) scale(1.1)}
+    80%{transform:translateY(0) rotate(360deg) scale(.95,1.05)}
+    100%{transform:rotate(360deg)}
+  }
+
+  .arm{animation:armPump var(--beat) var(--sync) infinite ease-in-out}
+  .a1 .arm.R{animation-delay:calc(var(--sync) - var(--beat)/2)}
+  .a2 .arm{animation-name:armWave;animation-duration:calc(var(--beat)*2)}
+  .a2 .arm.R{animation-delay:calc(var(--sync) - var(--beat))}
+  @keyframes armPump{0%,100%{transform:rotate(0)}50%{transform:rotate(calc(var(--dir)*30deg))}}
+  @keyframes armWave{0%,100%{transform:rotate(calc(var(--dir)*-25deg))}50%{transform:rotate(calc(var(--dir)*55deg))}}
+
+  .head{animation:headBob calc(var(--beat)*2) var(--sync) infinite ease-in-out}
+  @keyframes headBob{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(7deg)}}
+  .talking .head{animation-duration:var(--beat)}
+
+  .tail{animation:tailWag calc(var(--beat)*2) var(--sync) infinite ease-in-out}
+  @keyframes tailWag{0%,100%{transform:rotate(-14deg)}50%{transform:rotate(16deg)}}
+
+  .stick{fill:var(--g1);filter:drop-shadow(0 0 4px var(--g1)) drop-shadow(0 0 11px var(--g1));
+    animation:flicker calc(var(--beat)/2) var(--sync) infinite alternate}
+  .arm.R .stick{fill:var(--g2);filter:drop-shadow(0 0 4px var(--g2)) drop-shadow(0 0 11px var(--g2))}
+  @keyframes flicker{from{opacity:1}to{opacity:.7}}
+
+  .stick.bop2{fill:var(--g2);filter:drop-shadow(0 0 4px var(--g2)) drop-shadow(0 0 11px var(--g2))}
+  .neon{stroke:var(--g1);filter:drop-shadow(0 0 4px var(--g1)) drop-shadow(0 0 9px var(--g1));
+    animation:flicker calc(var(--beat)/2) var(--sync) infinite alternate}
+  .lens{fill:var(--g1);animation:lens var(--beat) var(--sync) infinite steps(1)}
+  .lens.l2{animation-delay:calc(var(--sync) - var(--beat)/2)}
+  @keyframes lens{0%{fill:var(--g1)}50%{fill:var(--g2)}}
+
+  .blink{animation:blink 4.3s infinite}
+  @keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+
+  .mopen{opacity:0}
+  .talking .mopen{animation:talk calc(var(--beat)/2) infinite alternate}
+  .talking .mclosed{opacity:0}
+  @keyframes talk{from{opacity:1;transform:scaleY(1)}to{opacity:1;transform:scaleY(.35)}}
+
+  .cap i{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--ink);flex:none;display:inline-block}
+  .cap i.twitch{background:#9146ff}
+  .cap i.tiktok{background:linear-gradient(135deg,#25f4ee 50%,#fe2c55 50%)}
+  .cap i.youtube{background:#ff0033}
+  .cap i.custom{background:#fff}
+  .cap span{white-space:nowrap;padding:0 2px}
+
+  /* ---------- speech bubbles ---------- */
+  .bwrap{
+    --shift:0px;--lift:0px;
+    position:absolute;bottom:100%;left:50%;margin-bottom:20px;
+    transform:translate(calc(-50% + var(--shift)),calc(-1 * var(--lift)));
+    width:max-content;max-width:340px;
+  }
+  .bubble{
+    --rad:22px;--bfill:#fff;
+    position:relative;
+    transform-origin:calc(50% - var(--shift)) calc(100% + 24px + var(--lift));
+    animation:popIn .45s cubic-bezier(.2,1.6,.4,1) both, wobble 2.6s .45s ease-in-out infinite;
+  }
+  .bubble.out{animation:popOut .35s cubic-bezier(.6,-.5,.8,.5) forwards}
+  @keyframes popIn{0%{transform:scale(0) rotate(-12deg);opacity:0}100%{transform:none;opacity:1}}
+  @keyframes popOut{0%{transform:none;opacity:1}40%{transform:scale(1.08)}100%{transform:scale(0) rotate(8deg);opacity:0}}
+  @keyframes wobble{0%,100%{transform:rotate(-1.2deg)}50%{transform:rotate(1.2deg) translateY(-2px)}}
+
+  /* bubble + pointer are one SVG path drawn behind the text */
+  .bshape{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-index:0}
+  .face{position:relative;z-index:1;padding:19px 19px 15px;box-sizing:border-box}
+  .txt{font-size:20px;line-height:1.18;color:var(--ink);word-wrap:break-word;overflow-wrap:anywhere}
+  .w{display:inline-block;opacity:0;transform:translateY(8px) scale(.5);
+    animation:wIn .38s cubic-bezier(.3,1.7,.5,1) forwards;
+    animation-delay:calc(var(--i) * 55ms + 180ms);}
+  .fade .w{animation:wOut .55s ease-in forwards;animation-delay:calc(var(--i) * 45ms)}
+  @keyframes wIn{to{opacity:1;transform:none}}
+  @keyframes wOut{
+    from{opacity:1;transform:none;filter:blur(0)}
+    to{opacity:0;transform:translateY(-7px) scale(.85);filter:blur(3px)}
+  }
+  .w img{height:1.6em;vertical-align:-.42em}
+  .w.em{position:relative}
+  .w .zw{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none}
+  .emoteonly .w img{height:2.6em}
+  .w.giant img{height:4.4em}
+  .w.gif{display:inline-block;margin:3px 0}
+  .w.gif img{display:block;height:auto;max-height:150px;max-width:230px;border:3px solid var(--ink);border-radius:8px}
+  .cap .pro{font:700 12px/1 'Comic Neue',sans-serif;letter-spacing:0;color:var(--ink);text-shadow:none;
+    background:#fff;border:2px solid var(--ink);border-radius:5px;padding:2px 4px 1px;white-space:nowrap}
+
+  .cap{
+    position:absolute;top:-15px;left:10px;transform:rotate(-4deg);
+    font:17px/1 'Bangers',sans-serif;letter-spacing:1px;white-space:nowrap;
+    padding:3px 11px 2px 8px;border:3px solid var(--ink);background:var(--c);color:#fff;
+    text-shadow:1.5px 1.5px 0 var(--ink),-1px -1px 0 var(--ink),1px -1px 0 var(--ink),-1px 1px 0 var(--ink);
+    display:flex;align-items:center;gap:5px;z-index:2;
+  }
+
+
+  /* shouting (ALL CAPS) */
+  .shout{--rad:6px;animation:popIn .4s cubic-bezier(.2,1.8,.4,1) both, shake .18s .4s infinite}
+  .shout .txt{font:26px/1.05 'Bangers',sans-serif;letter-spacing:1px}
+  .shout{--bfill:#fff27a}
+  @keyframes shake{0%,100%{transform:rotate(-1.5deg)}50%{transform:rotate(1.5deg) translate(1px,-1px)}}
+
+  /* /me actions */
+  .action{--rad:3px}
+  .action .txt{font-style:italic}
+  .action{--bfill:var(--cl)}
+
+  /* ---------- comic SFX bursts ---------- */
+  .sfx{position:absolute;width:140px;height:110px;margin-left:-70px;z-index:20;
+    animation:sfxIn 1.3s cubic-bezier(.2,1.5,.4,1) forwards}
+  .sfx .rays{position:absolute;inset:-30px;border-radius:50%;
+    background:repeating-conic-gradient(from 0deg,rgba(17,17,17,.55) 0 2deg,transparent 2deg 14deg);
+    -webkit-mask-image:radial-gradient(circle,transparent 35%,#000 45%,transparent 70%);
+    mask-image:radial-gradient(circle,transparent 35%,#000 45%,transparent 70%);
+    animation:raySpin 1.3s linear}
+  .sfx .star{position:absolute;inset:0;
+    background:radial-gradient(circle,rgba(255,255,255,.6) 1.5px,transparent 2px) 0 0/6px 6px,var(--g1)}
+  .sfx .star.back{background:var(--ink);transform:scale(1.12)}
+  .sfx b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font:30px/1 'Bangers',sans-serif;letter-spacing:2px;color:#fff;transform:rotate(-8deg);
+    -webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:3px 3px 0 var(--ink)}
+  @keyframes sfxIn{
+    0%{transform:scale(0) rotate(-30deg);opacity:0}
+    20%{transform:scale(1.15) rotate(6deg);opacity:1}
+    35%{transform:scale(1) rotate(0)}
+    75%{opacity:1}
+    100%{transform:scale(.9) translateY(-30px);opacity:0}
+  }
+  @keyframes raySpin{to{transform:rotate(25deg) scale(1.3);opacity:0}}
+
+  /* ---------- glowstick sparkles ---------- */
+  .spark{position:absolute;width:12px;height:12px;margin-left:-6px;z-index:4;
+    background:var(--sc);filter:drop-shadow(0 0 4px var(--sc));
+    clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);
+    animation:sparkUp 1.5s ease-out forwards}
+  @keyframes sparkUp{
+    0%{transform:translate(0,0) scale(.3) rotate(0);opacity:0}
+    15%{opacity:1;transform:translate(0,-8px) scale(1) rotate(30deg)}
+    100%{transform:translate(var(--dx),-90px) scale(.2) rotate(200deg);opacity:0}
+  }
+</style>
+</head>
+<body>
+<div id="stage"><div id="floor"><div id="ambient"></div></div></div>
+
+<script>
+(() => {
+  // ---------------- config ----------------
+  const Q = new URLSearchParams(location.search);
+  const num = (k, d) => { const v = parseFloat(Q.get(k)); return isNaN(v) ? d : v; };
+  const CFG = {
+    channel: (Q.get('channel') || '').replace(/^#/, '').toLowerCase().trim(),
+    tiktok: Q.get('tiktok') === '1' ? 'ws://localhost:21213/' : (Q.get('tiktok') || ''),
+    youtube: (Q.get('youtube') || '').trim(),
+    ytkey: (Q.get('ytkey') || '').trim(),
+    ytpoll: num('ytpoll', 6) * 1000,
+    size: num('size', 120),
+    bpm: num('bpm', 126),
+    linger: num('linger', 0.6) * 1000,
+    max: num('max', 12),
+    maxChars: num('maxchars', 150),
+    hold: num('hold', 1),
+    xmin: num('xmin', 0) / 100,
+    xmax: num('xmax', 100) / 100,
+    ground: num('ground', 6),
+    ignore: new Set((Q.get('ignore') || 'nightbot,streamelements,streamlabs,moobot,fossabot,wizebot')
+              .toLowerCase().split(',').map(s => s.trim()).filter(Boolean)),
+    cmds: Q.get('cmds') === '1',
+    botlist: Q.get('botlist') !== '0',
+    extemotes: Q.get('extemotes') !== '0',
+    twitchid: (Q.get('twitchid') || '').trim(),
+    pronouns: Q.get('pronouns') !== '0',
+    firsttime: Q.get('firsttime') === '1',
+    ambient: Q.get('ambient') !== '0',
+    sfx: Q.get('sfx') !== '0',
+    sparks: Q.get('sparks') !== '0',
+  };
+  CFG.demo = Q.get('demo') === '1' || (!CFG.channel && !CFG.tiktok && !CFG.youtube);
+
+  const BEAT = 60 / CFG.bpm;
+  const root = document.documentElement;
+  root.style.setProperty('--beat', BEAT + 's');
+  root.style.setProperty('--size', CFG.size + 'px');
+  root.style.setProperty('--ground', CFG.ground + 'px');
+
+  const stage = document.getElementById('stage');
+  if (!CFG.ambient) document.getElementById('ambient').remove();
+
+  // ---------------- color helpers ----------------
+  function hash(str) {
+    let h = 2166136261;
+    for (const ch of str) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  function hexToHsl(hex) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+    if (!m) return null;
+    const n = parseInt(m[1], 16);
+    let r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    let h = 0, s = 0; const l = (mx + mn) / 2;
+    if (mx !== mn) {
+      const d = mx - mn;
+      s = l > .5 ? d / (2 - mx - mn) : d / (mx + mn);
+      h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+      h *= 60;
+    }
+    return [h, s * 100, l * 100];
+  }
+  const hsl = (h, s, l, a = 1) => `hsla(${((h % 360) + 360) % 360},${s}%,${l}%,${a})`;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  function palette(name, color) {
+    const seed = hash(name.toLowerCase());
+    let h, s, l;
+    const fromHex = hexToHsl(color);
+    if (fromHex) {
+      [h, s, l] = fromHex;
+      s = clamp(s, 55, 95); l = clamp(l, 52, 68);
+    } else {
+      h = seed % 360; s = 78 + (seed >>> 9) % 18; l = 56 + (seed >>> 14) % 10;
+    }
+    return {
+      seed,
+      main: hsl(h, s, l),
+      fur2: hsl(h, s, l - 14),
+      light: hsl(h, s, 88),
+      dark: hsl(h, s * .8, 24),
+      dot: hsl(h, s, l, .2),
+      inner: hsl(340, 85, 80),
+      g1: hsl(h + 150, 100, 60),
+      g2: hsl(h + 220, 100, 62),
+      ga: hsl(h, 100, 60, .55),
+      alt: hsl(h + 35, s, clamp(l - 4, 45, 70)),
+      pt: hsl(h, s * .55, clamp(l - 30, 20, 40)),
+      cream: hsl(h + 20, 60, 93),
+    };
+  }
+
+  // ---------------- cat drawing ----------------
+  // Head + ears + body + front paws share one silhouette outline (no seams between them).
+  // Tail sits behind the body; arms sit in front with their own outline, which is masked
+  // away inside the body so the shoulder joint stays open instead of a closed ring.
+  // Every look is picked from a PRNG seeded by the username, so a chatter always gets the same cat.
+  let catUid = 0;
+  const BODY = 'M56 94 C42 102 34 122 38 136 C40 148 100 148 102 136 C106 122 98 102 84 94 Z';
+  const HEAD = 'M28 66 C28 40 48 29 70 29 C92 29 112 40 112 66 C112 80 104 90 94 94 C86 98 54 98 46 94 C36 90 28 80 28 66 Z';
+  const MIRROR = 'matrix(-1 0 0 1 140 0)';
+  const EARS = {
+    pointy: { sil: 'M31 58 L34 8 L63 33 Z', inner: 'M39 46 L40 20 L56 34 Z' },
+    tuft:   { sil: 'M31 58 L34 8 L63 33 Z', inner: 'M39 46 L40 20 L56 34 Z', tuft: 'M34 9 l-4 -9 M34 9 l1 -10 M34 9 l5 -7' },
+    fold:   { sil: 'M33 52 C29 32 42 22 63 32 Z', inner: 'M41 44 C39 34 46 29 56 33 Z' },
+    big:    { sil: 'M28 62 L25 -4 L64 32 Z', inner: 'M37 50 L34 10 L57 33 Z' },
+  };
+  const TAILS = {
+    curl:   { d: 'M92 134 C126 140 136 110 122 94 C114 85 116 72 126 70', w: 10, tip: 'M121 76 C116 70 124 64 128 70', tw: 5 },
+    fluffy: { d: 'M92 134 C126 140 136 110 122 94 C114 85 116 72 126 70', w: 17, tip: 'M120 78 C115 70 124 63 128 70', tw: 9 },
+    wavy:   { d: 'M92 134 C122 136 126 112 118 92 C112 78 124 66 128 56', w: 10, tip: 'M124 66 C122 60 125 56 128 56', tw: 5 },
+    bob:    { d: 'M94 134 C106 138 114 130 112 120', w: 15, tip: null },
+  };
+
+  function rng(seed) {
+    // scramble the seed first so similar usernames still get very different cats
+    let a = seed >>> 0;
+    a = Math.imul(a ^ (a >>> 16), 0x85ebca6b); a = Math.imul(a ^ (a >>> 13), 0xc2b2ae35); a ^= a >>> 16;
+    return () => {
+      a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const pick = (r, arr) => arr[Math.floor(r() * arr.length)];
+  const heart = (cx, cy, k) => `M${cx} ${cy + 9 * k} C${cx - 16 * k} ${cy - 2 * k} ${cx - 8 * k} ${cy - 13 * k} ${cx} ${cy - 5 * k} C${cx + 8 * k} ${cy - 13 * k} ${cx + 16 * k} ${cy - 2 * k} ${cx} ${cy + 9 * k} Z`;
+  const star = (cx, cy, r) => {
+    let d = '';
+    for (let i = 0; i < 10; i++) {
+      const rr = i % 2 ? r * .45 : r, a = -Math.PI / 2 + i * Math.PI / 5;
+      d += (i ? 'L' : 'M') + (cx + Math.cos(a) * rr).toFixed(1) + ' ' + (cy + Math.sin(a) * rr).toFixed(1) + ' ';
+    }
+    return d + 'Z';
+  };
+
+  function catSVG(p) {
+    const uid = 'm' + (++catUid);
+    const R = rng(p.seed ^ 0x9e3779b9);
+    const f = {
+      ears: pick(R, ['pointy', 'pointy', 'tuft', 'fold', 'big']),
+      tail: pick(R, ['curl', 'curl', 'fluffy', 'wavy', 'bob']),
+      pattern: pick(R, ['plain', 'stripes', 'tabby', 'tuxedo', 'patches', 'points', 'spots']),
+      eyes: pick(R, ['big', 'big', 'big', 'shades', 'happy', 'star', 'wink', 'hearts', 'sleepy']),
+      mouth: pick(R, ['w', 'w', 'fang', 'blep']),
+      hat: pick(R, ['none', 'none', 'headphones', 'party', 'beanie', 'bow', 'boppers']),
+      neck: pick(R, ['none', 'none', 'collar', 'glow', 'bandana']),
+      kandi: R() < .45,
+      chonk: .93 + R() * .2,
+      patchC: pick(R, [p.alt, p.pt, p.cream]),
+    };
+    const E = EARS[f.ears], T = TAILS[f.tail];
+    const pat = f.pattern;
+    const pawC = pat === 'tuxedo' ? '#fff' : pat === 'points' ? p.pt : p.main;
+    const tipC = pat === 'tuxedo' ? '#fff' : pat === 'points' ? p.pt : p.fur2;
+    const bellyC = pat === 'tuxedo' ? '#fff' : pat === 'points' ? p.cream : p.light;
+    const bodyT = `transform="matrix(${f.chonk.toFixed(3)} 0 0 1 ${(70 - 70 * f.chonk).toFixed(2)} 0)"`;
+    const INK = 4;
+    const O = 'stroke="#111" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"';
+
+    const armG = (side, inner) => {
+      const L = side === 'L';
+      return `<g class="arm ${side}" style="--dir:${L ? 1 : -1};transform-origin:${L ? 52 : 88}px 108px">${inner(L)}</g>`;
+    };
+    const headG = (inner) => `<g class="head" style="transform-origin:70px 98px">${inner}</g>`;
+    const ink = (w) => `stroke="#111" stroke-width="${w + INK * 2}" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
+    const fur = (w, c = p.main) => `stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
+    const solid = (isInk, c = p.main) => isInk
+      ? `fill="#111" stroke="#111" stroke-width="${INK * 2}" stroke-linejoin="round"`
+      : `fill="${c}" stroke="${c}" stroke-width="1" stroke-linejoin="round"`;
+    const both = (svg) => svg + `<g transform="${MIRROR}">${svg}</g>`;
+
+    // ----- tail -----
+    const tail = `<g class="tail" style="transform-origin:94px 132px">
+        <path d="${T.d}" ${ink(T.w)}/><path d="${T.d}" ${fur(T.w)}/>
+        ${T.tip ? `<path d="${T.tip}" fill="none" stroke="${tipC}" stroke-width="${T.tw}" stroke-linecap="round"/>` : ''}
+      </g>`;
+
+    // ----- one-outline silhouette -----
+    const silhouette = (isInk) => `
+      <path d="${BODY}" ${bodyT} ${solid(isInk)}/>
+      <ellipse cx="59" cy="146" rx="9" ry="6" ${solid(isInk)}/>
+      <ellipse cx="81" cy="146" rx="9" ry="6" ${solid(isInk)}/>
+      ${headG(`${both(`<path d="${E.sil}" ${solid(isInk)}/>`)}<path d="${HEAD}" ${solid(isInk)}/>`)}`;
+
+    // ----- fur patterns -----
+    const hc = `clip-path="url(#${uid}h)"`, bc = `clip-path="url(#${uid}b)"`;
+    const stripeHead = `<path d="M70 32 v9 M60 34 l2 8 M80 34 l-2 8" stroke="${p.fur2}" stroke-width="4" stroke-linecap="round"/>`;
+    let headPat = '', bodyPat = '';
+    if (pat === 'stripes') headPat = stripeHead;
+    if (pat === 'tabby') {
+      headPat = stripeHead + `<path d="M26 58 l11 3 M26 67 l10 1 M114 58 l-11 3 M114 67 l-10 1" stroke="${p.fur2}" stroke-width="4" stroke-linecap="round" ${hc}/>`;
+      bodyPat = `<path d="M34 110 l12 4 M32 121 l12 2 M33 132 l10 0 M106 110 l-12 4 M108 121 l-12 2 M107 132 l-10 0" stroke="${p.fur2}" stroke-width="4" stroke-linecap="round" ${bc}/>`;
+    }
+    if (pat === 'patches') {
+      headPat = `<g ${hc}><circle cx="94" cy="44" r="19" fill="${f.patchC}"/><circle cx="36" cy="76" r="11" fill="${f.patchC}"/></g>`;
+      bodyPat = `<ellipse cx="94" cy="126" rx="15" ry="13" fill="${f.patchC}" ${bc}/>`;
+    }
+    if (pat === 'spots') {
+      headPat = `<g fill="${p.fur2}" ${hc}><circle cx="52" cy="40" r="4"/><circle cx="90" cy="42" r="5"/><circle cx="104" cy="62" r="3.5"/><circle cx="34" cy="56" r="3"/></g>`;
+      bodyPat = `<g fill="${p.fur2}" ${bc}><circle cx="48" cy="116" r="5"/><circle cx="96" cy="130" r="4"/><circle cx="88" cy="106" r="3"/><circle cx="44" cy="134" r="3"/></g>`;
+    }
+    if (pat === 'points') {
+      headPat = both(`<path d="${E.sil}" fill="${p.pt}"/>`) + `<ellipse cx="70" cy="72" rx="25" ry="20" fill="${p.pt}" opacity=".8" ${hc}/>`;
+    }
+
+    // ----- eyes -----
+    const bigEye = (cx) => `<ellipse cx="${cx}" cy="63" rx="9" ry="10.5" fill="#1b1430"/>
+      <ellipse cx="${cx}" cy="65" rx="3" ry="7" fill="${p.g1}" opacity=".35"/>
+      <circle cx="${cx + 3.5}" cy="58.5" r="3.8" fill="#fff"/><circle cx="${cx - 3}" cy="67.5" r="1.8" fill="#fff" opacity=".85"/>`;
+    const caret = (cx) => `<path d="M${cx - 9} 66 q9 -12 18 0" fill="none" stroke="#111" stroke-width="4.5" stroke-linecap="round"/>`;
+    const eyeSvg = {
+      big: `<g class="blink" style="transform-origin:70px 63px">${bigEye(52)}${bigEye(88)}</g>`,
+      happy: caret(54) + caret(86),
+      wink: `<g class="blink" style="transform-origin:52px 63px">${bigEye(52)}</g>${caret(86)}`,
+      star: `<g class="blink" style="transform-origin:70px 63px">
+          <ellipse cx="52" cy="63" rx="9.5" ry="11" fill="#1b1430"/><ellipse cx="88" cy="63" rx="9.5" ry="11" fill="#1b1430"/>
+          <path d="${star(52, 63, 7)} ${star(88, 63, 7)}" class="lens"/>
+          <circle cx="55" cy="58" r="2" fill="#fff"/><circle cx="91" cy="58" r="2" fill="#fff"/></g>`,
+      shades: `<rect x="35" y="53" width="70" height="19" rx="8" fill="#111"/>
+         <rect class="lens" x="39" y="56" width="27" height="13" rx="5"/>
+         <rect class="lens l2" x="74" y="56" width="27" height="13" rx="5"/>
+         <path d="M43 60 h7 M78 60 h7" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".9"/>`,
+      hearts: `<path d="M62 59 h16" stroke="#111" stroke-width="3.5" stroke-linecap="round"/>
+         <path class="lens" d="${heart(51, 62, 1.15)}" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+         <path class="lens l2" d="${heart(89, 62, 1.15)}" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+         <path d="M45 58 l4 -2 M83 58 l4 -2" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".9"/>`,
+      sleepy: `<path d="M44 63 q8 7 16 0 M80 63 q8 7 16 0" fill="none" stroke="#111" stroke-width="4" stroke-linecap="round"/>
+         <path d="M45 66 l-4 3 M59 66 l4 3 M81 66 l-4 3 M95 66 l4 3" stroke="#111" stroke-width="2" stroke-linecap="round"/>`,
+    }[f.eyes];
+
+    // ----- mouth -----
+    const mouth = (f.mouth === 'blep' ? `<ellipse class="mclosed" cx="70" cy="85.5" rx="3.3" ry="3.6" fill="#ff7aa8" stroke="#111" stroke-width="1.5"/>` : '')
+      + `<path class="mclosed" d="M63 80.5 q3.5 4 7 0 q3.5 4 7 0" fill="none" stroke="#111" stroke-width="2.6" stroke-linecap="round"/>`
+      + (f.mouth === 'fang' ? `<path class="mclosed" d="M72.5 82.5 l2 4 l2 -4.2 Z" fill="#fff" stroke="#111" stroke-width="1.2" stroke-linejoin="round"/>` : '')
+      + `<ellipse class="mopen" style="transform-origin:70px 82px" cx="70" cy="84" rx="5" ry="5" fill="#6b0f2a" stroke="#111" stroke-width="2.5"/>`;
+
+    // ----- headwear -----
+    const hatSvg = {
+      none: '',
+      headphones: `<path d="M29 72 C22 6 118 6 111 72" fill="none" stroke="#111" stroke-width="8" stroke-linecap="round"/>
+         <path d="M29 72 C22 6 118 6 111 72" fill="none" stroke="${p.g2}" stroke-width="3" stroke-linecap="round"/>
+         <rect x="19" y="60" width="15" height="25" rx="7" fill="${p.g2}" ${O}/>
+         <rect x="106" y="60" width="15" height="25" rx="7" fill="${p.g2}" ${O}/>`,
+      party: `<path d="M70 -6 L57 32 L83 32 Z" fill="${p.g2}" ${O}/>
+         <path d="M63 16 L77 16" stroke="${p.g1}" stroke-width="3.5" stroke-linecap="round"/>
+         <circle cx="70" cy="-7" r="5.5" fill="${p.g1}" ${O}/>`,
+      beanie: `<path d="M31 48 C31 14 109 14 109 48 Z" fill="${p.g2}" ${O}/>
+         <path d="M48 24 v22 M59 20 v26 M70 19 v27 M81 20 v26 M92 24 v22" stroke="${p.g1}" stroke-width="3" opacity=".55"/>
+         <rect x="27" y="40" width="86" height="13" rx="6.5" fill="${p.g1}" ${O}/>
+         <circle cx="70" cy="13" r="7.5" fill="${p.g1}" ${O}/>`,
+      bow: `<g transform="rotate(14 92 33)"><path d="M92 33 L77 23 L77 43 Z M92 33 L107 23 L107 43 Z" fill="${p.g2}" ${O}/>
+         <circle cx="92" cy="33" r="4.5" fill="${p.g1}" ${O}/></g>`,
+      boppers: `<path d="M55 33 C47 24 58 16 50 4 M85 33 C93 24 82 16 90 4" fill="none" stroke="#111" stroke-width="3" stroke-linecap="round"/>
+         <circle class="stick" cx="50" cy="1" r="6.5" stroke="#111" stroke-width="2"/>
+         <circle class="stick bop2" cx="90" cy="1" r="6.5" stroke="#111" stroke-width="2"/>`,
+    }[f.hat];
+
+    // ----- neckwear -----
+    const neckSvg = {
+      none: '',
+      collar: `<path d="M50 96 Q70 108 90 96" fill="none" stroke="#111" stroke-width="9" stroke-linecap="round"/>
+         <path d="M50 96 Q70 108 90 96" fill="none" stroke="${p.g2}" stroke-width="4.5" stroke-linecap="round"/>
+         <circle cx="70" cy="105" r="4.8" fill="#ffd23f" stroke="#111" stroke-width="2"/><path d="M70 106 v3" stroke="#111" stroke-width="1.5"/>`,
+      glow: `<path d="M50 96 Q70 108 90 96" fill="none" stroke="#111" stroke-width="7" stroke-linecap="round"/>
+         <path class="neon" d="M50 96 Q70 108 90 96" fill="none" stroke-width="3.5" stroke-linecap="round"/>`,
+      bandana: `<path d="M48 95 Q70 103 92 95 L73 116 Q70 119 67 116 Z" fill="${p.g2}" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+         <g fill="#fff" opacity=".7"><circle cx="62" cy="101" r="1.6"/><circle cx="78" cy="101" r="1.6"/><circle cx="70" cy="108" r="1.6"/></g>`,
+    }[f.neck];
+
+    // ----- arms, glowsticks, kandi -----
+    const ARM = (L) => L ? 'M52 108 L34 90' : 'M88 108 L106 90';
+    const PAW = (L) => L ? [34, 90] : [106, 90];
+    const armInk = (L) => `<path d="${ARM(L)}" ${ink(11)}/><circle cx="${PAW(L)[0]}" cy="${PAW(L)[1]}" r="7.5" ${solid(true)}/>`;
+    const stick = (L) => `<g transform="rotate(${L ? -28 : 28} ${PAW(L)[0]} ${PAW(L)[1]})"><rect class="stick" x="${PAW(L)[0] - 4}" y="${PAW(L)[1] - 36}" width="8" height="36" rx="4" stroke="#111" stroke-width="2"/>
+        <rect x="${PAW(L)[0] - 1.5}" y="${PAW(L)[1] - 32}" width="3" height="20" rx="1.5" fill="#fff" opacity=".75"/></g>`;
+    const kandi = (L) => {
+      if (!f.kandi) return '';
+      const d = L ? 'M34.8 99.2 L43.2 90.8' : 'M96.8 90.8 L105.2 99.2';
+      return `<path d="${d}" stroke="#111" stroke-width="7" stroke-linecap="round"/>
+        <path d="${d}" stroke="${p.g1}" stroke-width="4" stroke-dasharray="2.6 2.6"/>
+        <path d="${d}" stroke="${p.g2}" stroke-width="4" stroke-dasharray="2.6 2.6" stroke-dashoffset="2.6"/>`;
+    };
+    const armFur = (L) => `${stick(L)}<path d="${ARM(L)}" ${fur(11)}/>${kandi(L)}
+        <circle cx="${PAW(L)[0]}" cy="${PAW(L)[1]}" r="7.5" ${solid(false, pawC)}/>
+        <path d="M${PAW(L)[0] - 3} ${PAW(L)[1] - 6} v3 M${PAW(L)[0] + 3} ${PAW(L)[1] - 6} v3" stroke="#111" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>`;
+
+    const headDetails = headG(`
+      ${headPat}
+      ${both(`<path d="${E.inner}" fill="${p.inner}" stroke="${p.inner}" stroke-width="3" stroke-linejoin="round"/>`)}
+      ${E.tuft ? both(`<path d="${E.tuft}" stroke="#111" stroke-width="2.2" stroke-linecap="round"/>`) : ''}
+      ${pat === 'points' ? '' : `<ellipse cx="70" cy="81" rx="15" ry="9" fill="${pat === 'tuxedo' ? '#fff' : p.light}"/>`}
+      <ellipse cx="42" cy="77" rx="7.5" ry="4.5" fill="#ff5fa8" opacity=".5"/>
+      <ellipse cx="98" cy="77" rx="7.5" ry="4.5" fill="#ff5fa8" opacity=".5"/>
+      <path d="M27 76 L10 72 M27 81 L10 83 M113 76 L130 72 M113 81 L130 83" stroke="#111" stroke-width="2" stroke-linecap="round" opacity=".75"/>
+      ${eyeSvg}
+      <path d="M66.5 75 L73.5 75 L70 79 Z" fill="${p.inner}" stroke="#d14a7d" stroke-width="1.5" stroke-linejoin="round"/>
+      ${mouth}
+      ${hatSvg}`);
+
+    const bodyDetails = `
+      ${bodyPat}
+      <ellipse cx="70" cy="${pat === 'tuxedo' ? 121 : 124}" rx="${(pat === 'tuxedo' ? 18 : 15) * f.chonk}" ry="${pat === 'tuxedo' ? 19 : 15}" fill="${bellyC}" ${bc}/>
+      <ellipse cx="59" cy="146" rx="9" ry="6" fill="${pawC}"/><ellipse cx="81" cy="146" rx="9" ry="6" fill="${pawC}"/>
+      <path d="M56 149 v-3 M62 149 v-3 M78 149 v-3 M84 149 v-3" stroke="#111" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>`;
+
+    return `<svg viewBox="-6 -16 152 170" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <mask id="${uid}" maskUnits="userSpaceOnUse" x="-40" y="-40" width="230" height="230">
+          <rect x="-40" y="-40" width="230" height="230" fill="#fff"/>
+          <path d="${BODY}" ${bodyT} fill="#000"/>
+        </mask>
+        <clipPath id="${uid}h"><path d="${HEAD}"/></clipPath>
+        <clipPath id="${uid}b"><path d="${BODY}" ${bodyT}/></clipPath>
+      </defs>
+      ${tail}
+      ${silhouette(true)}
+      ${silhouette(false)}
+      ${bodyDetails}
+      ${neckSvg}
+      ${headDetails}
+      <g mask="url(#${uid})">${armG('L', armInk)}${armG('R', armInk)}</g>
+      ${armG('L', armFur)}${armG('R', armFur)}
+    </svg>`;
+  }
+
+  // ---------------- slots / layout ----------------
+  const cats = new Map();          // key -> cat
+  const activeBubbles = new Set(); // bwrap elements
+  let slots = [];
+
+  function buildSlots() {
+    const W = innerWidth;
+    const x0 = W * CFG.xmin + CFG.size * .6, x1 = W * CFG.xmax - CFG.size * .6;
+    const span = Math.max(0, x1 - x0);
+    const n = Math.max(1, Math.min(CFG.max, Math.floor(span / (CFG.size * 1.15)) + 1));
+    const old = slots;
+    slots = Array.from({ length: n }, (_, i) => ({ x: n === 1 ? (x0 + x1) / 2 : x0 + span * i / (n - 1), cat: null }));
+    // re-seat existing cats
+    old.forEach(s => {
+      if (!s.cat) return;
+      const free = slots.find(z => !z.cat);
+      if (free) { free.cat = s.cat; s.cat.slot = free; s.cat.el.style.left = free.x + 'px'; }
+      else leave(s.cat);
+    });
+  }
+
+  // A slot is only free once its previous cat has fully ducked away (busyUntil),
+  // and slots still being vacated count as occupied when spreading cats out.
+  const EXIT_MS = 950;
+  const slotFree = (s, now) => !s.cat && now >= (s.busyUntil || 0);
+  function pickSlot() {
+    const now = Date.now();
+    const free = slots.filter(s => slotFree(s, now));
+    if (!free.length) return null;
+    const taken = slots.filter(s => !slotFree(s, now));
+    if (!taken.length) return free[Math.floor(Math.random() * free.length)];
+    let best = null, bestD = -1;
+    for (const s of free) {
+      const d = Math.min(...taken.map(t => Math.abs(t.x - s.x))) + Math.random() * CFG.size * .5;
+      if (d > bestD) { bestD = d; best = s; }
+    }
+    return best;
+  }
+
+  // ---------------- cat lifecycle ----------------
+  function spawnCat(key, name, color, platform, slot) {
+    const p = palette(name, color);
+    const el = document.createElement('div');
+    el.className = 'cat';
+    el.style.left = slot.x + 'px';
+    el.style.setProperty('--c', p.main);
+    el.style.setProperty('--cd', p.dark);
+    el.style.setProperty('--cl', p.light);
+    el.style.setProperty('--dot', p.dot);
+    el.style.setProperty('--g1', p.g1);
+    el.style.setProperty('--g2', p.g2);
+    el.style.setProperty('--ga', p.ga);
+    el.style.setProperty('--sync', -((performance.now() / 1000) % (BEAT * 2)) + 's');
+
+    const dance = p.seed >>> 10; // unsigned shift: a signed one went negative and picked a dance that doesn't exist
+    el.innerHTML = `<div class="floorglow"></div>
+      <div class="dancer d${dance % 3} a${(dance >>> 2) % 3}">${catSVG(p)}</div>`;
+    stage.appendChild(el);
+
+    const cat = { key, name, platform, el, p, slot, last: Date.now(), shownAt: Date.now(), speaking: false, queue: [], leaving: false };
+    slot.cat = cat;
+    cats.set(key, cat);
+    stage.classList.add('has-cats');
+    if (CFG.sfx) burst(slot.x, p);
+    return cat;
+  }
+
+  function leave(cat) {
+    if (cat.leaving) return;
+    cat.leaving = true;
+    cats.delete(cat.key);
+    if (!cats.size) stage.classList.remove('has-cats');
+    if (cat.slot && cat.slot.cat === cat) { cat.slot.cat = null; cat.slot.busyUntil = Date.now() + EXIT_MS; }
+    cat.el.querySelectorAll('.bwrap').forEach(b => activeBubbles.delete(b));
+    cat.el.classList.add('leaving');
+    setTimeout(() => cat.el.remove(), 850);
+  }
+
+
+  // ---------------- comic SFX ----------------
+  const SFX_WORDS = ['MEOW!', 'POW!', 'NYA!', 'ZAP!', 'BOOM!', 'WHAM!', 'PURR!', 'BAM!', 'MRRP!', 'KAPOW!'];
+  const starPoly = (() => {
+    const pts = [], n = 12;
+    for (let i = 0; i < n * 2; i++) {
+      const r = i % 2 ? 30 : 50, a = Math.PI * i / n;
+      pts.push(`${50 + Math.cos(a) * r}% ${50 + Math.sin(a) * r}%`);
+    }
+    return `polygon(${pts.join(',')})`;
+  })();
+
+  function burst(x, p) {
+    const el = document.createElement('div');
+    el.className = 'sfx';
+    el.style.left = (x + (Math.random() - .5) * CFG.size * .6) + 'px';
+    el.style.bottom = (CFG.ground + CFG.size * .55) + 'px';
+    el.style.setProperty('--g1', p.g1);
+    el.innerHTML = `<div class="rays"></div><div class="star back"></div><div class="star"></div><b></b>`;
+    el.querySelectorAll('.star').forEach(s => s.style.clipPath = starPoly);
+    el.querySelector('b').textContent = SFX_WORDS[Math.floor(Math.random() * SFX_WORDS.length)];
+    stage.appendChild(el);
+    setTimeout(() => el.remove(), 1350);
+  }
+
+  // ---------------- sparkles ----------------
+  if (CFG.sparks) setInterval(() => {
+    if (!cats.size || document.querySelectorAll('.spark').length > 40) return;
+    const list = [...cats.values()].filter(c => !c.leaving);
+    if (!list.length) return;
+    const c = list[Math.floor(Math.random() * list.length)];
+    const left = Math.random() < .5;
+    const s = document.createElement('div');
+    s.className = 'spark';
+    s.style.left = (c.slot.x + (left ? -1 : 1) * CFG.size * .32) + 'px';
+    s.style.bottom = (CFG.ground + CFG.size * .78) + 'px';
+    s.style.setProperty('--sc', left ? c.p.g1 : c.p.g2);
+    s.style.setProperty('--dx', ((Math.random() - .5) * 60) + 'px');
+    stage.appendChild(s);
+    setTimeout(() => s.remove(), 1550);
+  }, 220);
+
+  // ---------------- synchronized "drop" spin ----------------
+  (function scheduleSync() {
+    setTimeout(() => {
+      if (cats.size >= 2) {
+        stage.classList.add('sync');
+        setTimeout(() => stage.classList.remove('sync'), BEAT * 2000 + 50);
+      }
+      scheduleSync();
+    }, 30000 + Math.random() * 25000);
+  })();
+
+  // ---------------- speech ----------------
+  function toWords(tokens) {
+    const words = [];
+    let chars = 0, cut = false;
+    for (const t of tokens) {
+      if (cut) break;
+      if (t.t === 'emote' || t.t === 'gif') {
+        const last = words[words.length - 1];
+        if (t.zw && last && last.t === 'emote') { (last.over = last.over || []).push(t.url); continue; } // 7TV/BTTV zero-width
+        words.push({ ...t }); chars += 2; continue;
+      }
+      for (const w of t.v.split(/\s+/).filter(Boolean)) {
+        if (chars + w.length > CFG.maxChars) {
+          const room = CFG.maxChars - chars;
+          if (room > 3) words.push({ t: 'text', v: Array.from(w).slice(0, room).join('') + '…' });
+          else words.push({ t: 'text', v: '…' });
+          cut = true; break;
+        }
+        words.push({ t: 'text', v: w });
+        chars += w.length + 1;
+      }
+    }
+    return words;
+  }
+
+  function layoutBubble(wrap, cat) {
+    const W = innerWidth;
+    let shift = 0, lift = 0;
+    wrap.style.setProperty('--shift', '0px');
+    wrap.style.setProperty('--lift', '0px');
+    let r = wrap.getBoundingClientRect();
+    if (r.left < 10) shift = 10 - r.left;
+    else if (r.right > W - 10) shift = (W - 10) - r.right;
+    wrap.style.setProperty('--shift', shift + 'px');
+
+    for (let k = 0; k < 6; k++) {
+      r = wrap.getBoundingClientRect();
+      let hit = null;
+      for (const o of activeBubbles) {
+        if (o === wrap) continue;
+        const q = o.getBoundingClientRect();
+        if (r.left < q.right + 8 && r.right > q.left - 8 && r.top < q.bottom + 18 && r.bottom > q.top - 8) { hit = q; break; }
+      }
+      if (!hit) break;
+      lift += r.bottom - hit.top + 22;
+      wrap.style.setProperty('--lift', lift + 'px');
+    }
+    cat.el.style.zIndex = lift > 0 ? 4 : 6;
+    if (wrap._redraw) wrap._redraw();
+    return { shift, lift };
+  }
+
+  // Bubble outline and pointer drawn as ONE continuous path, plus a halftone shadow copy.
+  let shapeUid = 0;
+  function makeShape(bubble, face, wrap, kind) {
+    const ns = 'http://www.w3.org/2000/svg', id = 'bs' + (++shapeUid);
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('class', 'bshape');
+    bubble.insertBefore(svg, face);
+    const r = kind === 'shout' ? 7 : kind === 'action' ? 4 : 22;
+    const fill = kind === 'shout' ? '#fff27a' : kind === 'action' ? 'var(--cl)' : '#fff';
+    const dots = kind === 'shout' ? 'rgba(255,170,0,.35)' : 'var(--dot)';
+    const draw = () => {
+      const W = face.offsetWidth, H = face.offsetHeight;
+      if (!W || !H) return;
+      const shift = parseFloat(wrap.style.getPropertyValue('--shift')) || 0;
+      const lift = parseFloat(wrap.style.getPropertyValue('--lift')) || 0;
+      const th = 24 + lift;                 // pointer length (stretches when the bubble is lifted)
+      const tip = W / 2 - shift;            // the cat's center, in bubble coordinates
+      const bw = 26;                        // pointer base width
+      let xl = tip - 7, xr = xl + bw;
+      if (xr > W - r - 3) { xr = W - r - 3; xl = xr - bw; }
+      if (xl < r + 3) { xl = r + 3; xr = xl + bw; }
+      const d = `M${r} 0 H${W - r} A${r} ${r} 0 0 1 ${W} ${r} V${H - r} A${r} ${r} 0 0 1 ${W - r} ${H}`
+              + ` H${xr} Q${xr - 5} ${H + th * .55} ${tip} ${H + th} Q${xl + 3} ${H + th * .45} ${xl} ${H}`
+              + ` H${r} A${r} ${r} 0 0 1 0 ${H - r} V${r} A${r} ${r} 0 0 1 ${r} 0 Z`;
+      svg.setAttribute('width', W);
+      svg.setAttribute('height', H + th);
+      svg.innerHTML = `<defs>
+          <pattern id="${id}s" width="6" height="6" patternUnits="userSpaceOnUse">
+            <rect width="6" height="6" style="fill:var(--c)"/><circle cx="3" cy="3" r="1.5" style="fill:var(--cd)"/>
+          </pattern>
+          <pattern id="${id}f" width="7" height="7" patternUnits="userSpaceOnUse">
+            <rect width="7" height="7" style="fill:${fill}"/><circle cx="3.5" cy="3.5" r="1.25" style="fill:${dots}"/>
+          </pattern>
+        </defs>
+        <path d="${d}" transform="translate(7 7)" fill="url(#${id}s)" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+        <path d="${d}" fill="url(#${id}f)" stroke="#111" stroke-width="4" stroke-linejoin="round"/>`;
+    };
+    draw();
+    if (window.ResizeObserver) new ResizeObserver(draw).observe(face);
+    wrap._redraw = draw; // redraw once web fonts load
+  }
+
+  function speak(cat, tokens, kind) {
+    cat.last = Date.now();
+    clearTimeout(cat.exitTimer);
+    if (cat.speaking) {
+      if (cat.queue.length < 3) cat.queue.push([tokens, kind]);
+      return;
+    }
+    const words = toWords(tokens);
+    if (!words.length) { if (!cat.speaking) leave(cat); return; }
+    cat.speaking = true;
+    cat.el.classList.add('talking');
+
+    const wrap = document.createElement('div');
+    wrap.className = 'bwrap';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble' + (kind ? ' ' + kind : '');
+    const face = document.createElement('div'); face.className = 'face';
+    const txt = document.createElement('div'); txt.className = 'txt';
+    // Shrink the text box to its widest line: browsers otherwise keep the full max width
+    // after wrapping, leaving a blank strip on the right of the bubble.
+    const fitText = () => {
+      txt.style.width = '';
+      let right = 0;
+      for (const w of txt.children) right = Math.max(right, w.offsetLeft + w.offsetWidth);
+      if (right) txt.style.width = Math.ceil(right - txt.offsetLeft + 1) + 'px';
+    };
+    const relayout = () => { if (wrap.isConnected) { fitText(); layoutBubble(wrap, cat); } };
+    if (words.every(w => w.t === 'emote')) bubble.classList.add('emoteonly');
+    words.forEach((w, i) => {
+      const s = document.createElement('span');
+      s.className = 'w';
+      s.style.setProperty('--i', i);
+      if (w.t === 'emote' || w.t === 'gif') {
+        s.classList.add(w.t === 'gif' ? 'gif' : 'em');
+        if (w.giant) s.classList.add('giant');
+        const img = document.createElement('img');
+        img.src = w.url; img.alt = w.code || '';
+        img.onload = relayout;                       // images change the bubble size once loaded
+        img.onerror = () => { s.textContent = w.code || ''; relayout(); };
+        s.appendChild(img);
+        (w.over || []).forEach(u => {
+          const z = document.createElement('img'); z.src = u; z.className = 'zw'; z.alt = '';
+          s.appendChild(z);
+        });
+      } else s.textContent = w.v;
+      txt.appendChild(s);
+      txt.appendChild(document.createTextNode(' '));
+    });
+    face.appendChild(txt);
+    const cap = document.createElement('div'); cap.className = 'cap';
+    const dot = document.createElement('i'); dot.className = cat.platform;
+    const chars = Array.from(cat.name);
+    const nm = document.createElement('span');
+    nm.textContent = chars.length > 22 ? chars.slice(0, 21).join('') + '…' : cat.name;
+    cap.append(dot, nm);
+    const fitCap = () => {
+      const minW = Math.ceil(cap.offsetWidth + 24);
+      face.style.minWidth = minW + 'px';
+      wrap.style.maxWidth = Math.max(340, minW) + 'px';
+    };
+    const addPronouns = (txt) => {
+      if (!txt || cap.querySelector('.pro')) return;
+      const pr = document.createElement('span'); pr.className = 'pro'; pr.textContent = txt;
+      cap.appendChild(pr);
+      if (wrap.isConnected) { fitCap(); relayout(); }
+    };
+    if (cat.pronouns) addPronouns(cat.pronouns);
+    else if (cat.pronP) cat.pronP.then(addPronouns);
+    bubble.append(face, cap);
+    wrap.appendChild(bubble);
+    cat.el.appendChild(wrap);
+    // widen the bubble if the name label is longer than the message, so the label never hangs off the side
+    fitCap();
+    fitText();
+    activeBubbles.add(wrap);
+    layoutBubble(wrap, cat);
+    makeShape(bubble, face, wrap, kind);
+
+    const textLen = words.reduce((n, w) => n + (w.t === 'text' ? w.v.length : w.t === 'gif' ? 12 : 3), 0);
+    const reveal = words.length * 55 + 450;
+    const hold = clamp(2200 + textLen * 55, 2500, 9000) * CFG.hold;
+
+    setTimeout(() => {
+      if (cat.leaving) return;
+      bubble.classList.add('fade');
+      setTimeout(() => {
+        bubble.classList.add('out');
+        setTimeout(() => {
+          wrap.remove();
+          activeBubbles.delete(wrap);
+          cat.speaking = false;
+          cat.el.classList.remove('talking');
+          cat.last = Date.now();
+          const next = cat.queue.shift();
+          if (cat.leaving) return;
+          if (next) setTimeout(() => speak(cat, next[0], next[1]), 150);
+          else cat.exitTimer = setTimeout(() => leave(cat), CFG.linger); // only on screen while talking
+        }, 360);
+      }, words.length * 45 + 500);
+    }, reveal + hold);
+  }
+
+  // ---------------- entry point for all chat sources ----------------
+  function handleChat({ name, login, text, tokens, color, platform = 'custom', action = false }) {
+    if (!name) return;
+    const lower = name.toLowerCase();
+    if (CFG.ignore.has(lower)) return;
+    const plain = (text || '').trim();
+    if (!CFG.cmds && plain.startsWith('!')) return;
+    tokens = expandExtEmotes(tokens || [{ t: 'text', v: plain }]);
+    if (!tokens.some(t => t.t !== 'text' || t.v.trim())) return;
+
+    const letters = tokens.filter(t => t.t === 'text').map(t => t.v).join(' ').replace(/[^A-Za-z]/g, '');
+    const kind = action ? 'action' : (letters.length >= 4 && letters === letters.toUpperCase() ? 'shout' : '');
+
+    const key = platform + ':' + lower;
+    const cat = cats.get(key);
+    if (cat) { speak(cat, tokens, kind); return; }
+    const wait = pending.get(key);
+    if (wait) { if (wait.msgs.length < 3) wait.msgs.push([tokens, kind]); return; }
+    const pronP = platform === 'twitch' && CFG.pronouns ? pronounsFor((login || name).toLowerCase()) : null;
+    pending.set(key, { name, color, platform, pronP, msgs: [[tokens, kind]], since: Date.now() });
+    trySpawn(key);
+  }
+
+  // Chatters waiting for a free spot. A new cat never takes a spot that is occupied or
+  // still being vacated; if the stage is full, the cat that has been up longest is asked
+  // to leave (once it has had a few seconds on screen) and the newcomer waits for the spot.
+  const pending = new Map();
+  function trySpawn(key) {
+    const w = pending.get(key);
+    if (!w) return;
+    const slot = pickSlot();
+    if (slot) {
+      pending.delete(key);
+      const cat = spawnCat(key, w.name, w.color, w.platform, slot);
+      if (w.pronP) { cat.pronP = w.pronP; w.pronP.then(t => { cat.pronouns = t; }); }
+      const [first, ...rest] = w.msgs;
+      cat.queue.push(...rest);
+      setTimeout(() => speak(cat, first[0], first[1]), 450);
+      return;
+    }
+    const now = Date.now();
+    const vacating = slots.filter(s => !s.cat && now < (s.busyUntil || 0));
+    let retry = 300;
+    if (vacating.length) {
+      retry = Math.min(...vacating.map(s => s.busyUntil - now)) + 20;
+    } else if (vacating.length + pending.size > 0) {
+      const live = [...cats.values()].filter(c => !c.leaving).sort((a, b) => a.shownAt - b.shownAt);
+      const victim = live.find(c => !c.speaking) || live.find(c => now - c.shownAt > 3500);
+      if (victim) { leave(victim); retry = EXIT_MS + 20; }
+    }
+    if (now - w.since > 20000) { pending.delete(key); return; } // give up on very stale messages
+    setTimeout(() => trySpawn(key), retry);
+  }
+
+  window.raveCats = {
+    say: (name, text, opts = {}) => handleChat({ name, text, color: opts.color, platform: opts.platform || 'custom' }),
+    clear: () => [...cats.values()].forEach(leave),
+  };
+
+  // ---------------- Twitch (anonymous IRC over WebSocket) ----------------
+  function parseTags(raw) {
+    const o = {};
+    const un = v => v.replace(/\\(.)/g, (_, c) => ({ s: ' ', ':': ';', '\\': '\\', r: '\r', n: '\n' }[c] ?? c));
+    raw.split(';').forEach(kv => { const i = kv.indexOf('='); o[kv.slice(0, i)] = un(kv.slice(i + 1)); });
+    return o;
+  }
+  // Native Twitch emotes (animated ones play automatically), chat GIFs (gifs tag) and
+  // gigantified emotes (the Power-up makes the last emote in the message huge).
+  function twitchTokens(msg, tags) {
+    const chars = Array.from(msg);
+    const ranges = [];
+    (tags.emotes || '').split('/').forEach(e => {
+      const [id, pos] = e.split(':');
+      if (!pos) return;
+      pos.split(',').forEach(p => { const [a, b] = p.split('-').map(Number); ranges.push({ kind: 'emote', id, a, b }); });
+    });
+    const gre = /(\d+)-(\d+)\|([^|]+)\|(.+?)(?=,\d+-\d+\||$)/g;
+    let g;
+    while ((g = gre.exec(tags.gifs || ''))) ranges.push({ kind: 'gif', a: +g[1], b: +g[2], id: g[3], url: g[4] });
+    ranges.sort((x, y) => x.a - y.a);
+    const giant = tags['msg-id'] === 'gigantified-emote-message';
+    const lastEmote = giant ? [...ranges].reverse().find(r => r.kind === 'emote') : null;
+    const out = []; let i = 0;
+    for (const r of ranges) {
+      if (r.a < i) continue;
+      if (r.a > i) out.push({ t: 'text', v: chars.slice(i, r.a).join('') });
+      const code = chars.slice(r.a, r.b + 1).join('');
+      if (r.kind === 'gif') out.push({ t: 'gif', url: r.url, code: 'GIF' });
+      else out.push({ t: 'emote', code, giant: r === lastEmote,
+        url: `https://static-cdn.jtvnw.net/emoticons/v2/${r.id}/default/dark/${r === lastEmote ? '3.0' : '2.0'}` });
+      i = r.b + 1;
+    }
+    if (i < chars.length) out.push({ t: 'text', v: chars.slice(i).join('') });
+    return out;
+  }
+
+  // ---------------- BTTV / FFZ / 7TV emotes ----------------
+  const extEmotes = new Map(); // code -> { url, zw }
+  const BTTV_ZW = new Set(['SoSnowy', 'IceCold', 'SantaHat', 'TopHat', 'ReinDeer', 'CandyCane', 'cvMask', 'cvHazmat']);
+  let twitchRoomId = CFG.twitchid;
+  async function getJSON(u) { const r = await fetch(u); if (!r.ok) throw new Error(r.status + ' ' + u); return r.json(); }
+  async function loadExtEmotes() {
+    const next = new Map();
+    const add = (code, url, zw = false) => { if (code && url) next.set(code, { url, zw }); };
+    const bttv = (l) => (l || []).forEach(e => add(e.code, `https://cdn.betterttv.net/emote/${e.id}/2x`, BTTV_ZW.has(e.code)));
+    const ffz = (l) => (l || []).forEach(e => e.images && add(e.code, e.images['2x'] || e.images['1x']));
+    const stv = (l) => (l || []).forEach(e => {
+      const host = e.data && e.data.host;
+      if (!host || !host.url) return;
+      const files = host.files || [];
+      const f = files.find(x => x.name === '2x.webp') || files.find(x => /2x/.test(x.name)) || files[0];
+      const zw = ((e.flags || 0) & 1) || ((e.data.flags || 0) & 256);
+      add(e.name, (host.url.startsWith('//') ? 'https:' : '') + host.url + '/' + (f ? f.name : '2x.webp'), !!zw);
+    });
+    // globals first so channel emotes with the same name win
+    await Promise.allSettled([
+      getJSON('https://api.betterttv.net/3/cached/emotes/global').then(bttv),
+      getJSON('https://api.betterttv.net/3/cached/frankerfacez/emotes/global').then(ffz),
+      getJSON('https://7tv.io/v3/emote-sets/global').then(set => stv(set.emotes)),
+    ]);
+    if (twitchRoomId) await Promise.allSettled([
+      getJSON(`https://api.betterttv.net/3/cached/users/twitch/${twitchRoomId}`).then(u => bttv([...(u.channelEmotes || []), ...(u.sharedEmotes || [])])),
+      getJSON(`https://api.betterttv.net/3/cached/frankerfacez/users/twitch/${twitchRoomId}`).then(ffz),
+      getJSON(`https://7tv.io/v3/users/twitch/${twitchRoomId}`).then(u => stv(u.emote_set && u.emote_set.emotes)),
+    ]);
+    if (next.size) { extEmotes.clear(); next.forEach((v, k) => extEmotes.set(k, v)); }
+    console.log('[raveCats] loaded', extEmotes.size, 'BTTV/FFZ/7TV emotes');
+  }
+  function expandExtEmotes(tokens) {
+    if (!extEmotes.size) return tokens;
+    const out = [];
+    for (const t of tokens) {
+      if (t.t !== 'text') { out.push(t); continue; }
+      let buf = '';
+      for (const part of t.v.split(/(\s+)/)) {
+        const e = part && extEmotes.get(part);
+        if (e) { if (buf) out.push({ t: 'text', v: buf }); buf = ''; out.push({ t: 'emote', code: part, url: e.url, zw: e.zw }); }
+        else buf += part;
+      }
+      if (buf) out.push({ t: 'text', v: buf });
+    }
+    return out;
+  }
+
+  // ---------------- pronouns (pronouns.alejo.io, Twitch only) ----------------
+  const pronounDefs = {};
+  const pronounCache = new Map();
+  let pronounDefsP = null;
+  function pronounsFor(login) {
+    if (pronounCache.has(login)) return pronounCache.get(login);
+    pronounDefsP = pronounDefsP || getJSON('https://api.pronouns.alejo.io/v1/pronouns').then(j => Object.assign(pronounDefs, j)).catch(() => {});
+    const pr = (async () => {
+      try {
+        const r = await fetch(`https://api.pronouns.alejo.io/v1/users/${encodeURIComponent(login)}`);
+        if (!r.ok) return '';
+        const u = await r.json();
+        await pronounDefsP;
+        const a = pronounDefs[u.pronoun_id], b = u.alt_pronoun_id && pronounDefs[u.alt_pronoun_id];
+        if (!a) return '';
+        return (b ? `${a.subject}/${b.subject}` : a.singular ? a.subject : `${a.subject}/${a.object}`).toLowerCase();
+      } catch { return ''; }
+    })();
+    pronounCache.set(login, pr);
+    if (pronounCache.size > 2000) pronounCache.delete(pronounCache.keys().next().value);
+    return pr;
+  }
+
+  function connectTwitch(channel) {
+    const ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
+    ws.onopen = () => {
+      ws.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
+      ws.send('PASS SCHMOOPIIE');
+      ws.send('NICK justinfan' + Math.floor(10000 + Math.random() * 80000));
+      ws.send('JOIN #' + channel);
+    };
+    ws.onmessage = (ev) => {
+      ev.data.split('\r\n').forEach(line => {
+        if (!line) return;
+        if (line.startsWith('PING')) { ws.send('PONG :tmi.twitch.tv'); return; }
+        const m = /^(?:@(\S+) )?:([^!\s]+)![^ ]+ PRIVMSG #\S+ :(.*)$/.exec(line);
+        if (m) {
+          const tags = m[1] ? parseTags(m[1]) : {};
+          if (tags['first-msg'] === '1' && !CFG.firsttime) return;
+          let msg = m[3], action = false;
+          const act = /^\u0001ACTION (.*)\u0001$/.exec(msg);
+          if (act) { msg = act[1]; action = true; }
+          handleChat({
+            name: tags['display-name'] || m[2],
+            text: msg,
+            login: m[2],
+            tokens: twitchTokens(msg, tags),
+            color: tags.color,
+            platform: 'twitch',
+            action,
+          });
+          return;
+        }
+        const rs = /^@(\S+) :tmi\.twitch\.tv ROOMSTATE /.exec(line);
+        if (rs) {
+          const id = parseTags(rs[1])['room-id'];
+          if (id && id !== twitchRoomId) { twitchRoomId = id; if (CFG.extemotes) loadExtEmotes(); }
+          return;
+        }
+        const cc = /CLEARCHAT #\S+ :(\S+)$/.exec(line);
+        if (cc) { const c = cats.get('twitch:' + cc[1].toLowerCase()); if (c) leave(c); }
+      });
+    };
+    ws.onclose = () => setTimeout(() => connectTwitch(channel), 3000);
+  }
+
+  // ---------------- WebSocket bridges (TikFinity for TikTok, or any bridge for YouTube) ----------------
+  function connectBridge(url, platform) {
+    let ws;
+    try { ws = new WebSocket(url); } catch (e) { return setTimeout(() => connectBridge(url, platform), 5000); }
+    ws.onmessage = (ev) => {
+      let o; try { o = JSON.parse(ev.data); } catch { return; }
+      const type = (o.event || o.type || '').toString().toLowerCase();
+      if (type && !['chat', 'comment', 'message', 'chatmessage'].includes(type)) return;
+      const d = o.data || o;
+      const name = d.nickname || d.uniqueId || d.displayName || d.chatname ||
+                   (d.user && (d.user.nickname || d.user.uniqueId || d.user.name)) || d.username;
+      const text = d.comment || d.message || d.text || d.chatmessage;
+      if (name && typeof text === 'string') handleChat({ name, text, color: d.color, platform, tokens: bridgeTokens(text, d.emotes) });
+    };
+    ws.onclose = () => setTimeout(() => connectBridge(url, platform), 3000);
+    ws.onerror = () => {};
+  }
+
+  // TikTok subscriber emotes arrive as [{ emoteImageUrl, placeInComment }]; other bridges may send
+  // [{ name|code, url|imageUrl }] to swap by name.
+  function bridgeTokens(text, emotes) {
+    if (!Array.isArray(emotes) || !emotes.length) return null;
+    const placed = emotes.filter(e => e && (e.emoteImageUrl || e.url || e.imageUrl) && Number.isInteger(e.placeInComment))
+                         .sort((a, b) => a.placeInComment - b.placeInComment);
+    if (placed.length) {
+      const chars = Array.from(text), out = []; let i = 0;
+      for (const e of placed) {
+        const at = Math.min(e.placeInComment, chars.length);
+        if (at > i) out.push({ t: 'text', v: chars.slice(i, at).join('') });
+        out.push({ t: 'emote', url: e.emoteImageUrl || e.url || e.imageUrl });
+        i = at;
+      }
+      if (i < chars.length) out.push({ t: 'text', v: chars.slice(i).join('') });
+      return out;
+    }
+    const named = new Map(emotes.filter(e => e && (e.name || e.code) && (e.url || e.imageUrl)).map(e => [e.name || e.code, e.url || e.imageUrl]));
+    if (!named.size) return null;
+    return text.split(/(\s+)/).filter(Boolean).map(w => named.has(w) ? { t: 'emote', code: w, url: named.get(w) } : { t: 'text', v: w });
+  }
+
+  // ---------------- YouTube (Data API v3 polling) ----------------
+  async function connectYouTube(videoId, key) {
+    const API = 'https://www.googleapis.com/youtube/v3/';
+    const retry = () => setTimeout(() => connectYouTube(videoId, key), 30000);
+    let chatId;
+    try {
+      const r = await fetch(`${API}videos?part=liveStreamingDetails&id=${encodeURIComponent(videoId)}&key=${encodeURIComponent(key)}`);
+      const j = await r.json();
+      chatId = j.items && j.items[0] && j.items[0].liveStreamingDetails && j.items[0].liveStreamingDetails.activeLiveChatId;
+      if (!chatId) { console.warn('[raveCats] YouTube: no active live chat for', videoId, j.error || ''); return retry(); }
+    } catch (e) { console.warn('[raveCats] YouTube lookup failed', e); return retry(); }
+
+    let pageToken = '', first = true;
+    const poll = async () => {
+      let wait = CFG.ytpoll;
+      try {
+        const r = await fetch(`${API}liveChat/messages?liveChatId=${encodeURIComponent(chatId)}&part=snippet,authorDetails&maxResults=200&key=${encodeURIComponent(key)}${pageToken ? '&pageToken=' + pageToken : ''}`);
+        const j = await r.json();
+        if (j.error) {
+          console.warn('[raveCats] YouTube:', j.error.message);
+          if (r.status === 403 || r.status === 404) return retry(); // chat ended or quota hit
+          wait = 15000;
+        } else {
+          pageToken = j.nextPageToken || pageToken;
+          wait = Math.max(CFG.ytpoll, j.pollingIntervalMillis || 0);
+          if (!first) {
+            // spread a batch out over the poll window so cats don't all talk at once
+            const items = (j.items || []).filter(it => it.snippet && it.snippet.displayMessage);
+            items.forEach((it, i) => setTimeout(() => handleChat({
+              name: it.authorDetails.displayName,
+              text: it.snippet.displayMessage,
+              platform: 'youtube',
+            }), (i / Math.max(1, items.length)) * wait * .8));
+          }
+          first = false; // skip backlog on connect
+        }
+      } catch (e) { wait = 15000; }
+      setTimeout(poll, wait);
+    };
+    poll();
+  }
+
+  // ---------------- demo mode ----------------
+  function runDemo() {
+    const names = ['NeonWhiskers', 'bass_drop_betty', 'PixelPaws', 'GlowstickGary', 'mochi_raver', 'DJ_Catnip',
+                   'lofi_luna', 'Zoomies4Life', 'vaporpurr', 'TechnoTabby', 'kittykat_9000', 'sunny_sardine'];
+    const lines = [
+      'LETS GOOO', 'this beat is unreal', 'hi chat!! 👋', 'the drop is coming i can feel it',
+      'who else is vibing rn', 'meow meow meow', 'turn it UP', 'this overlay is so cute omg',
+      '🎶🎶🎶', 'first time here, love the energy', 'my cat is dancing too lol',
+      'can we get a remix of this one?', 'gg', 'hydrate check 💧', 'WHAT A SET',
+      'bro the glowsticks 😭', 'I have been waiting all week for this stream', 'pspspsps',
+    ];
+    const colors = ['#FF4500', '#1E90FF', '#9ACD32', '#FF69B4', '#8A2BE2', '#00FF7F', '', '', '#DAA520', '#5F9EA0'];
+    const tick = () => {
+      const name = names[Math.floor(Math.random() * names.length)];
+      const action = Math.random() < .08;
+      handleChat({
+        name,
+        text: action ? 'does a little spin' : lines[Math.floor(Math.random() * lines.length)],
+        color: colors[hash(name) % colors.length],
+        platform: ['twitch', 'tiktok', 'youtube'][hash(name) % 3],
+        action,
+      });
+      setTimeout(tick, 1200 + Math.random() * 2600);
+    };
+    setTimeout(tick, 600);
+  }
+
+  // ---------------- public known-bot list (TwitchInsights) ----------------
+  // Adds ~1k known bot accounts to the ignore list. If the site can't be reached (offline,
+  // blocked, or it refuses browser requests) the overlay just keeps using your own ignore list.
+  async function loadBotList() {
+    try {
+      const r = await fetch('https://api.twitchinsights.net/v1/bots/all', { cache: 'no-store' });
+      const j = await r.json();
+      let n = 0;
+      (j.bots || []).forEach(b => { const name = Array.isArray(b) ? b[0] : b; if (name) { CFG.ignore.add(String(name).toLowerCase()); n++; } });
+      console.log('[raveCats] loaded', n, 'known bots');
+    } catch (e) {
+      console.warn('[raveCats] known-bot list unavailable, using ignore= only', e);
+    }
+    setTimeout(loadBotList, 6 * 3600 * 1000); // refresh every 6 hours
+  }
+
+  // ---------------- boot ----------------
+  if (CFG.botlist) loadBotList();
+  if (CFG.extemotes) {
+    loadExtEmotes();
+    setInterval(loadExtEmotes, 10 * 60 * 1000);
+  }
+  buildSlots();
+  let rt;
+  addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(buildSlots, 200); });
+  if (CFG.channel) connectTwitch(CFG.channel);
+  if (CFG.tiktok) connectBridge(CFG.tiktok, 'tiktok');
+  if (CFG.youtube) {
+    if (/^wss?:\/\//i.test(CFG.youtube)) connectBridge(CFG.youtube, 'youtube');
+    else if (CFG.ytkey) connectYouTube(CFG.youtube.replace(/^.*(?:v=|youtu\.be\/|live\/)([\w-]{11}).*$/, '$1'), CFG.ytkey);
+    else console.warn('[raveCats] youtube= needs ytkey= (or a ws:// bridge URL)');
+  }
+  if (CFG.demo) runDemo();
+})();
+</script>
+</body>
+</html>
