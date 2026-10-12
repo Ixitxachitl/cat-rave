@@ -708,12 +708,12 @@
     if (!free.length) return null;
     const taken = slots.filter(s => !slotFree(s, now));
     if (!taken.length) return free[Math.floor(Math.random() * free.length)];
-    let best = null, bestD = -1;
-    for (const s of free) {
-      const d = Math.min(...taken.map(t => Math.abs(t.x - s.x))) + Math.random() * CFG.size * .5;
-      if (d > bestD) { bestD = d; best = s; }
-    }
-    return best;
+    // Random pick, weighted so slots right next to a taken one are less likely
+    // (but still possible) - avoids filling edges, then center, then the gaps.
+    const w = free.map(s => Math.min(CFG.size * 2.5, Math.min(...taken.map(t => Math.abs(t.x - s.x)))));
+    let r = Math.random() * w.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < free.length; i++) if ((r -= w[i]) < 0) return free[i];
+    return free[free.length - 1];
   }
 
   // ---------------- cat lifecycle ----------------
