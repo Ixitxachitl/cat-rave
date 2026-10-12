@@ -1,8 +1,8 @@
 # Rave Cat Chat
 
-An OBS Browser Source overlay that turns stream chatters into raving cats, dogs & wolves, bees or jack-o'-lanterns.
+An OBS Browser Source overlay that turns stream chatters into raving cats, dogs & wolves, bees, jack-o'-lanterns or snowmen.
 
-Pick the theme in the settings panel (gear, bottom-right, via OBS Interact) or with `?theme=cats|dogs|bees|pumpkins`.
+Pick the theme in the settings panel (gear, bottom-right, via OBS Interact) or with `?theme=cats|dogs|bees|pumpkins|snowmen`.
 
 Live at [rave.ixitxachitl.com](https://rave.ixitxachitl.com).
 
