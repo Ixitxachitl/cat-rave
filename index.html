@@ -2,10 +2,11 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Rave Cat Chat</title>
+<title>Rave Chat</title>
 <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
 <!--
-  RAVE CAT CHAT — OBS Browser Source overlay
+  RAVE CHAT — OBS Browser Source overlay
+  Chatters show up as dancing cats, dogs & wolves, bees or jack-o'-lanterns (pick a theme in settings).
   ------------------------------------------------------------
   Add as a Browser Source (e.g. 1920x1080), transparent background is automatic.
 
@@ -16,12 +17,12 @@
 
   Every setting can also be given as a URL parameter, which overrides the saved value — handy for
   running two copies with different setups. The panel's "Copy setup link" builds that link for you.
-    channel, kick, tiktok (1 = TikFinity), youtube, ytkey, ytpoll, demo, size, bpm, linger, max, xmin, xmax,
+    theme (cats, dogs, bees, pumpkins), channel, kick, tiktok (1 = TikFinity), youtube, ytkey, ytpoll, demo, size, bpm, linger, max, xmin, xmax,
     ground, hold, maxchars, cmds, firsttime, botlist, ignore, extemotes, pronouns, badges,
     ambient, sfx, sparks        (booleans take 1/0)
 
   Custom integrations (Streamer.bot, etc.) can also call:
-    window.raveCats.say("name", "message", { color: "#ff00aa", platform: "twitch" })
+    window.rave.say("name", "message", { color: "#ff00aa", platform: "twitch" })
 -->
 <style>
   :root{
@@ -33,14 +34,14 @@
   html,body{margin:0;height:100%;background:transparent;overflow:hidden;}
   #stage{position:fixed;inset:0;pointer-events:none;font-family:'Comic Neue',system-ui,sans-serif;}
 
-  /* ---------- ambient floor (only lit while cats are on stage) ---------- */
+  /* ---------- ambient floor (only lit while ravers are on stage) ---------- */
   #floor{position:absolute;inset:0;opacity:0;transition:opacity .7s ease}
-  #stage.has-cats #floor{opacity:1}
+  #stage.has-ravers #floor{opacity:1}
   #ambient{
     position:absolute;left:0;right:0;bottom:0;height:90px;opacity:.22;
     background:
       radial-gradient(circle,rgba(255,255,255,.9) 1.3px,transparent 1.8px) 0 0/9px 9px,
-      linear-gradient(90deg,#ff2bd6,#7a5cff,#00e5ff,#39ff88,#ffe600,#ff2bd6);
+      var(--floor,linear-gradient(90deg,#ff2bd6,#7a5cff,#00e5ff,#39ff88,#ffe600,#ff2bd6));
     background-size:9px 9px,300% 100%;
     -webkit-mask-image:linear-gradient(to top,#000 0%,transparent 100%);
     mask-image:linear-gradient(to top,#000 0%,transparent 100%);
@@ -49,22 +50,22 @@
   @keyframes ambientShift{to{background-position:0 0,300% 0}}
   @keyframes ambientPulse{0%{opacity:.3}100%{opacity:.16}}
 
-  /* ---------- cats ---------- */
-  .cat{
+  /* ---------- dancers ---------- */
+  .raver{
     position:absolute;bottom:var(--ground);
     width:var(--size);height:calc(var(--size)*1.12);
     margin-left:calc(var(--size)*-.5);
-    animation:catIn .7s cubic-bezier(.2,1.4,.4,1) both;
+    animation:raverIn .7s cubic-bezier(.2,1.4,.4,1) both;
     z-index:5;
   }
-  .cat.leaving{animation:catOut .8s cubic-bezier(.5,-.4,.8,.6) forwards;}
-  @keyframes catIn{
+  .raver.leaving{animation:raverOut .8s cubic-bezier(.5,-.4,.8,.6) forwards;}
+  @keyframes raverIn{
     0%{transform:translateY(120%) scale(.5) rotate(-10deg);opacity:0}
     55%{transform:translateY(-14%) scale(1.08,.95) rotate(4deg);opacity:1}
     75%{transform:translateY(3%) scale(.97,1.04)}
     100%{transform:none}
   }
-  @keyframes catOut{
+  @keyframes raverOut{
     0%{transform:none;opacity:1}
     30%{transform:translateY(-22%) rotate(-8deg) scale(1.05)}
     100%{transform:translateY(140%) rotate(14deg) scale(.6);opacity:0}
@@ -118,8 +119,29 @@
   @keyframes headBob{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(7deg)}}
   .talking .head{animation-duration:var(--beat)}
 
+  /* cats */
   .tail{animation:tailWag calc(var(--beat)*2) var(--sync) infinite ease-in-out}
   @keyframes tailWag{0%,100%{transform:rotate(-14deg)}50%{transform:rotate(16deg)}}
+
+  /* dogs: fast happy wag, ears flop to the beat */
+  .wag{animation:wag calc(var(--beat)/2) var(--sync) infinite alternate ease-in-out}
+  @keyframes wag{from{transform:rotate(-18deg)}to{transform:rotate(14deg)}}
+  .flop{animation:flop var(--beat) var(--sync) infinite ease-in-out}
+  @keyframes flop{0%,100%{transform:rotate(calc(var(--dir)*-4deg))}50%{transform:rotate(calc(var(--dir)*9deg))}}
+
+  /* bees and costume wings */
+  .wing,.flap{animation:flutter calc(var(--beat)/4) var(--sync) infinite alternate ease-in-out}
+  @keyframes flutter{from{transform:rotate(calc(var(--dir)*-10deg))}to{transform:rotate(calc(var(--dir)*14deg))}}
+
+  /* pumpkins */
+  .cape{animation:capeSway calc(var(--beat)*2) var(--sync) infinite ease-in-out}
+  @keyframes capeSway{0%,100%{transform:skewX(-5deg)}50%{transform:skewX(5deg)}}
+  .halo{filter:drop-shadow(0 0 4px #ffd84a) drop-shadow(0 0 9px #ffb800)}
+  /* carved faces glow like a candle is inside */
+  .carve{fill:#ffd447;stroke:#7a2a00;stroke-width:2;stroke-linejoin:round;
+    filter:drop-shadow(0 0 3px #ff9000) drop-shadow(0 0 7px rgba(255,120,0,.7));
+    animation:candle calc(var(--beat)/2) var(--sync) infinite alternate}
+  @keyframes candle{from{fill:#ffd447}to{fill:#ffaa2a}}
 
   .stick{fill:var(--g1);filter:drop-shadow(0 0 4px var(--g1)) drop-shadow(0 0 11px var(--g1));
     animation:flicker calc(var(--beat)/2) var(--sync) infinite alternate}
@@ -140,6 +162,9 @@
   .talking .mopen{animation:talk calc(var(--beat)/2) infinite alternate}
   .talking .mclosed{opacity:0}
   @keyframes talk{from{opacity:1;transform:scaleY(1)}to{opacity:1;transform:scaleY(.35)}}
+  /* a pumpkin's carved mouth stretches open and shut instead */
+  .talking .mouth{animation:carveTalk calc(var(--beat)/2) infinite alternate ease-in-out}
+  @keyframes carveTalk{from{transform:scale(1.06,1.3)}to{transform:scale(.96,.75)}}
 
   .cap i{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--ink);flex:none;display:inline-block}
   .cap i.twitch{background:#9146ff}
@@ -269,12 +294,12 @@
   .sp-f{margin:0 0 10px}
   .sp-f:last-child{margin-bottom:0}
   .sp-f label{display:block;margin-bottom:3px}
-  .sp-f input[type=text],.sp-f input[type=password],.sp-f input[type=number],.sp-f textarea{
+  .sp-f input[type=text],.sp-f input[type=password],.sp-f input[type=number],.sp-f textarea,.sp-f select{
     width:100%;box-sizing:border-box;font:600 14px 'Comic Neue',system-ui,sans-serif;padding:6px 8px;
     border:2.5px solid var(--ink);border-radius:8px;background:#fff;color:var(--ink)}
   .sp-f textarea{min-height:58px;resize:vertical}
-  .sp-f input:focus,.sp-f textarea:focus{outline:3px solid #00e5ff;outline-offset:1px}
-  .sp-f input:disabled,.sp-f textarea:disabled{background:#eee;color:#666}
+  .sp-f input:focus,.sp-f textarea:focus,.sp-f select:focus{outline:3px solid #00e5ff;outline-offset:1px}
+  .sp-f input:disabled,.sp-f textarea:disabled,.sp-f select:disabled{background:#eee;color:#666}
   .sp-f small{display:block;margin-top:3px;font-weight:700;font-size:12px;color:#555}
   .sp-f small.url{color:#c2185b}
   .sp-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -305,7 +330,19 @@
 <script>
 (() => {
   // ---------------- settings (saved locally; URL parameters override) ----------------
-  const STORE_KEY = 'raveCats.settings.v1';
+  const STORE_KEY = 'rave.settings.v1';
+  const THEME_NAMES = {
+    cats: { one: 'cat', many: 'cats', title: 'Cats' },
+    dogs: { one: 'dog', many: 'dogs', title: 'Dogs & wolves' },
+    bees: { one: 'bee', many: 'bees', title: 'Bees' },
+    pumpkins: { one: 'pumpkin', many: 'pumpkins', title: 'Jack-o\'-lanterns' },
+  };
+  const Q = new URLSearchParams(location.search);
+  let saved = {}, storageOK = true;
+  try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {}; } catch (e) { storageOK = false; }
+  const themeId = (t) => t in THEME_NAMES ? t : 'cats';
+  const TN = THEME_NAMES[themeId(Q.get('theme') || saved.theme)];
+  const cap = (s) => s[0].toUpperCase() + s.slice(1);
   const FIELDS = [
     { sec: 'Chat sources' },
     { k: 'channel', label: 'Twitch channel', type: 'text', def: '', ph: 'yourchannel', help: 'Read anonymously, no login needed.' },
@@ -315,13 +352,14 @@
     { k: 'ytkey', label: 'YouTube API key', type: 'password', def: '', help: 'YouTube Data API v3 key from Google Cloud Console.' },
     { k: 'ytpoll', label: 'YouTube check every (s)', type: 'num', def: 6, min: 2, max: 60, step: 1, help: 'Lower = snappier, but uses the daily API quota faster.' },
     { k: 'demo', label: 'Demo chat', type: 'bool', def: false, help: 'Fake chatters. Also runs on its own when no source is set.' },
-    { sec: 'Cats' },
-    { k: 'size', label: 'Cat size (px)', type: 'num', def: 120, min: 50, max: 300, step: 5 },
+    { sec: 'Dancers' },
+    { k: 'theme', label: 'Theme', type: 'select', def: 'cats', opts: Object.entries(THEME_NAMES).map(([k, t]) => [k, t.title]), help: 'Who shows up to dance.' },
+    { k: 'size', label: `${cap(TN.one)} size (px)`, type: 'num', def: 120, min: 50, max: 300, step: 5 },
     { k: 'bpm', label: 'Dance tempo (BPM)', type: 'num', def: 126, min: 40, max: 220, step: 1 },
-    { k: 'max', label: 'Max cats on screen', type: 'num', def: 12, min: 1, max: 40, step: 1, help: 'Also limited by how many fit across.' },
+    { k: 'max', label: `Max ${TN.many} on screen`, type: 'num', def: 12, min: 1, max: 40, step: 1, help: 'Also limited by how many fit across.' },
     { k: 'linger', label: 'Stay after talking (s)', type: 'num', def: 0.6, min: 0, max: 15, step: 0.1 },
     { k: 'xmin', label: 'Stage left edge (%)', type: 'num', def: 0, min: 0, max: 100, step: 1 },
-    { k: 'xmax', label: 'Stage right edge (%)', type: 'num', def: 100, min: 0, max: 100, step: 1, help: 'Keep cats out from under a facecam, etc.' },
+    { k: 'xmax', label: 'Stage right edge (%)', type: 'num', def: 100, min: 0, max: 100, step: 1, help: `Keep ${TN.many} out from under a facecam, etc.` },
     { k: 'ground', label: 'Distance from bottom (px)', type: 'num', def: 6, min: -40, max: 600, step: 1 },
     { sec: 'Speech bubbles' },
     { k: 'hold', label: 'Bubble time ×', type: 'num', def: 1, min: 0.3, max: 5, step: 0.1, help: 'Multiplier for how long messages stay up.' },
@@ -340,14 +378,12 @@
     { k: 'sparks', label: 'Glowstick sparkles', type: 'bool', def: true },
   ];
   const FIELD = Object.fromEntries(FIELDS.filter(f => f.k).map(f => [f.k, f]));
-  const Q = new URLSearchParams(location.search);
   function coerce(f, v) {
     if (f.type === 'bool') return v === true || v === 1 || /^(1|true|yes|on)$/i.test(String(v));
     if (f.type === 'num') { const n = parseFloat(v); return isNaN(n) ? f.def : Math.min(f.max, Math.max(f.min, n)); }
+    if (f.type === 'select') return f.opts.some(o => o[0] === v) ? v : f.def;
     return String(v ?? '');
   }
-  let saved = {}, storageOK = true;
-  try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {}; } catch (e) { storageOK = false; }
   const fromURL = {};
   for (const f of Object.values(FIELD)) if (Q.has(f.k)) fromURL[f.k] = coerce(f, Q.get(f.k));
   const S = {};
@@ -355,6 +391,7 @@
 
   const tk = S.tiktok.trim();
   const CFG = {
+    theme: S.theme,
     channel: S.channel.replace(/^#/, '').toLowerCase().trim(),
     kick: S.kick.trim().replace(/^.*kick\.com\//i, '').replace(/[/?#].*$/, '').toLowerCase(),
     tiktok: tk === '1' ? 'ws://localhost:21213/' : tk,
@@ -443,30 +480,9 @@
     };
   }
 
-  // ---------------- cat drawing ----------------
-  // Head + ears + body + front paws share one silhouette outline (no seams between them).
-  // Tail sits behind the body; arms sit in front with their own outline, which is masked
-  // away inside the body so the shoulder joint stays open instead of a closed ring.
-  // Every look is picked from a PRNG seeded by the username, so a chatter always gets the same cat.
-  let catUid = 0;
-  const BODY = 'M56 94 C42 102 34 122 38 136 C40 148 100 148 102 136 C106 122 98 102 84 94 Z';
-  const HEAD = 'M28 66 C28 40 48 29 70 29 C92 29 112 40 112 66 C112 80 104 90 94 94 C86 98 54 98 46 94 C36 90 28 80 28 66 Z';
-  const MIRROR = 'matrix(-1 0 0 1 140 0)';
-  const EARS = {
-    pointy: { sil: 'M31 58 L34 8 L63 33 Z', inner: 'M39 46 L40 20 L56 34 Z' },
-    tuft:   { sil: 'M31 58 L34 8 L63 33 Z', inner: 'M39 46 L40 20 L56 34 Z', tuft: 'M34 9 l-4 -9 M34 9 l1 -10 M34 9 l5 -7' },
-    fold:   { sil: 'M33 52 C29 32 42 22 63 32 Z', inner: 'M41 44 C39 34 46 29 56 33 Z' },
-    big:    { sil: 'M28 62 L25 -4 L64 32 Z', inner: 'M37 50 L34 10 L57 33 Z' },
-  };
-  const TAILS = {
-    curl:   { d: 'M92 134 C126 140 136 110 122 94 C114 85 116 72 126 70', w: 10, tip: 'M121 76 C116 70 124 64 128 70', tw: 5 },
-    fluffy: { d: 'M92 134 C126 140 136 110 122 94 C114 85 116 72 126 70', w: 17, tip: 'M120 78 C115 70 124 63 128 70', tw: 9 },
-    wavy:   { d: 'M92 134 C122 136 126 112 118 92 C112 78 124 66 128 56', w: 10, tip: 'M124 66 C122 60 125 56 128 56', tw: 5 },
-    bob:    { d: 'M94 134 C106 138 114 130 112 120', w: 15, tip: null },
-  };
-
+  // ---------------- drawing helpers ----------------
   function rng(seed) {
-    // scramble the seed first so similar usernames still get very different cats
+    // scramble the seed first so similar usernames still get very different characters
     let a = seed >>> 0;
     a = Math.imul(a ^ (a >>> 16), 0x85ebca6b); a = Math.imul(a ^ (a >>> 13), 0xc2b2ae35); a ^= a >>> 16;
     return () => {
@@ -487,198 +503,1417 @@
     return d + 'Z';
   };
 
-  function catSVG(p) {
-    const uid = 'm' + (++catUid);
-    const R = rng(p.seed ^ 0x9e3779b9);
-    const f = {
-      ears: pick(R, ['pointy', 'pointy', 'tuft', 'fold', 'big']),
-      tail: pick(R, ['curl', 'curl', 'fluffy', 'wavy', 'bob']),
-      pattern: pick(R, ['plain', 'stripes', 'tabby', 'tuxedo', 'patches', 'points', 'spots']),
-      eyes: pick(R, ['big', 'big', 'big', 'shades', 'happy', 'star', 'wink', 'hearts', 'sleepy']),
-      mouth: pick(R, ['w', 'w', 'fang', 'blep']),
-      hat: pick(R, ['none', 'none', 'headphones', 'party', 'beanie', 'bow', 'boppers']),
-      neck: pick(R, ['none', 'none', 'collar', 'glow', 'bandana']),
-      kandi: R() < .45,
-      chonk: .93 + R() * .2,
-      patchC: pick(R, [p.alt, p.pt, p.cream]),
+  const drawCat = (() => {
+    // ---------------- cat drawing ----------------
+    // Head + ears + body + front paws share one silhouette outline (no seams between them).
+    // Tail sits behind the body; arms sit in front with their own outline, which is masked
+    // away inside the body so the shoulder joint stays open instead of a closed ring.
+    // Every look is picked from a PRNG seeded by the username, so a chatter always gets the same cat.
+    let catUid = 0;
+    const BODY = 'M56 94 C42 102 34 122 38 136 C40 148 100 148 102 136 C106 122 98 102 84 94 Z';
+    const HEAD = 'M28 66 C28 40 48 29 70 29 C92 29 112 40 112 66 C112 80 104 90 94 94 C86 98 54 98 46 94 C36 90 28 80 28 66 Z';
+    const MIRROR = 'matrix(-1 0 0 1 140 0)';
+    const EARS = {
+      pointy: { sil: 'M31 58 L34 8 L63 33 Z', inner: 'M39 46 L40 20 L56 34 Z' },
+      tuft:   { sil: 'M31 58 L34 8 L63 33 Z', inner: 'M39 46 L40 20 L56 34 Z', tuft: 'M34 9 l-4 -9 M34 9 l1 -10 M34 9 l5 -7' },
+      fold:   { sil: 'M33 52 C29 32 42 22 63 32 Z', inner: 'M41 44 C39 34 46 29 56 33 Z' },
+      big:    { sil: 'M28 62 L25 -4 L64 32 Z', inner: 'M37 50 L34 10 L57 33 Z' },
     };
-    const E = EARS[f.ears], T = TAILS[f.tail];
-    const pat = f.pattern;
-    const pawC = pat === 'tuxedo' ? '#fff' : pat === 'points' ? p.pt : p.main;
-    const tipC = pat === 'tuxedo' ? '#fff' : pat === 'points' ? p.pt : p.fur2;
-    const bellyC = pat === 'tuxedo' ? '#fff' : pat === 'points' ? p.cream : p.light;
-    const bodyT = `transform="matrix(${f.chonk.toFixed(3)} 0 0 1 ${(70 - 70 * f.chonk).toFixed(2)} 0)"`;
-    const INK = 4;
-    const O = 'stroke="#111" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"';
-
-    const armG = (side, inner) => {
-      const L = side === 'L';
-      return `<g class="arm ${side}" style="--dir:${L ? 1 : -1};transform-origin:${L ? 52 : 88}px 108px">${inner(L)}</g>`;
+    const TAILS = {
+      curl:   { d: 'M92 134 C126 140 136 110 122 94 C114 85 116 72 126 70', w: 10, tip: 'M121 76 C116 70 124 64 128 70', tw: 5 },
+      fluffy: { d: 'M92 134 C126 140 136 110 122 94 C114 85 116 72 126 70', w: 17, tip: 'M120 78 C115 70 124 63 128 70', tw: 9 },
+      wavy:   { d: 'M92 134 C122 136 126 112 118 92 C112 78 124 66 128 56', w: 10, tip: 'M124 66 C122 60 125 56 128 56', tw: 5 },
+      bob:    { d: 'M94 134 C106 138 114 130 112 120', w: 15, tip: null },
     };
-    const headG = (inner) => `<g class="head" style="transform-origin:70px 98px">${inner}</g>`;
-    const ink = (w) => `stroke="#111" stroke-width="${w + INK * 2}" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
-    const fur = (w, c = p.main) => `stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
-    const solid = (isInk, c = p.main) => isInk
-      ? `fill="#111" stroke="#111" stroke-width="${INK * 2}" stroke-linejoin="round"`
-      : `fill="${c}" stroke="${c}" stroke-width="1" stroke-linejoin="round"`;
-    const both = (svg) => svg + `<g transform="${MIRROR}">${svg}</g>`;
 
-    // ----- tail -----
-    const tail = `<g class="tail" style="transform-origin:94px 132px">
-        <path d="${T.d}" ${ink(T.w)}/><path d="${T.d}" ${fur(T.w)}/>
-        ${T.tip ? `<path d="${T.tip}" fill="none" stroke="${tipC}" stroke-width="${T.tw}" stroke-linecap="round"/>` : ''}
-      </g>`;
 
-    // ----- one-outline silhouette -----
-    const silhouette = (isInk) => `
-      <path d="${BODY}" ${bodyT} ${solid(isInk)}/>
-      <ellipse cx="59" cy="146" rx="9" ry="6" ${solid(isInk)}/>
-      <ellipse cx="81" cy="146" rx="9" ry="6" ${solid(isInk)}/>
-      ${headG(`${both(`<path d="${E.sil}" ${solid(isInk)}/>`)}<path d="${HEAD}" ${solid(isInk)}/>`)}`;
+    function catSVG(p) {
+      const uid = 'm' + (++catUid);
+      const R = rng(p.seed ^ 0x9e3779b9);
+      const f = {
+        ears: pick(R, ['pointy', 'pointy', 'tuft', 'fold', 'big']),
+        tail: pick(R, ['curl', 'curl', 'fluffy', 'wavy', 'bob']),
+        pattern: pick(R, ['plain', 'stripes', 'tabby', 'tuxedo', 'patches', 'points', 'spots']),
+        eyes: pick(R, ['big', 'big', 'big', 'shades', 'happy', 'star', 'wink', 'hearts', 'sleepy']),
+        mouth: pick(R, ['w', 'w', 'fang', 'blep']),
+        hat: pick(R, ['none', 'none', 'headphones', 'party', 'beanie', 'bow', 'boppers']),
+        neck: pick(R, ['none', 'none', 'collar', 'glow', 'bandana']),
+        kandi: R() < .45,
+        chonk: .93 + R() * .2,
+        patchC: pick(R, [p.alt, p.pt, p.cream]),
+      };
+      const E = EARS[f.ears], T = TAILS[f.tail];
+      const pat = f.pattern;
+      const pawC = pat === 'tuxedo' ? '#fff' : pat === 'points' ? p.pt : p.main;
+      const tipC = pat === 'tuxedo' ? '#fff' : pat === 'points' ? p.pt : p.fur2;
+      const bellyC = pat === 'tuxedo' ? '#fff' : pat === 'points' ? p.cream : p.light;
+      const bodyT = `transform="matrix(${f.chonk.toFixed(3)} 0 0 1 ${(70 - 70 * f.chonk).toFixed(2)} 0)"`;
+      const INK = 4;
+      const O = 'stroke="#111" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"';
 
-    // ----- fur patterns -----
-    const hc = `clip-path="url(#${uid}h)"`, bc = `clip-path="url(#${uid}b)"`;
-    const stripeHead = `<path d="M70 32 v9 M60 34 l2 8 M80 34 l-2 8" stroke="${p.fur2}" stroke-width="4" stroke-linecap="round"/>`;
-    let headPat = '', bodyPat = '';
-    if (pat === 'stripes') headPat = stripeHead;
-    if (pat === 'tabby') {
-      headPat = stripeHead + `<path d="M26 58 l11 3 M26 67 l10 1 M114 58 l-11 3 M114 67 l-10 1" stroke="${p.fur2}" stroke-width="4" stroke-linecap="round" ${hc}/>`;
-      bodyPat = `<path d="M34 110 l12 4 M32 121 l12 2 M33 132 l10 0 M106 110 l-12 4 M108 121 l-12 2 M107 132 l-10 0" stroke="${p.fur2}" stroke-width="4" stroke-linecap="round" ${bc}/>`;
+      const armG = (side, inner) => {
+        const L = side === 'L';
+        return `<g class="arm ${side}" style="--dir:${L ? 1 : -1};transform-origin:${L ? 52 : 88}px 108px">${inner(L)}</g>`;
+      };
+      const headG = (inner) => `<g class="head" style="transform-origin:70px 98px">${inner}</g>`;
+      const ink = (w) => `stroke="#111" stroke-width="${w + INK * 2}" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
+      const fur = (w, c = p.main) => `stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
+      const solid = (isInk, c = p.main) => isInk
+        ? `fill="#111" stroke="#111" stroke-width="${INK * 2}" stroke-linejoin="round"`
+        : `fill="${c}" stroke="${c}" stroke-width="1" stroke-linejoin="round"`;
+      const both = (svg) => svg + `<g transform="${MIRROR}">${svg}</g>`;
+
+      // ----- tail -----
+      const tail = `<g class="tail" style="transform-origin:94px 132px">
+          <path d="${T.d}" ${ink(T.w)}/><path d="${T.d}" ${fur(T.w)}/>
+          ${T.tip ? `<path d="${T.tip}" fill="none" stroke="${tipC}" stroke-width="${T.tw}" stroke-linecap="round"/>` : ''}
+        </g>`;
+
+      // ----- one-outline silhouette -----
+      const silhouette = (isInk) => `
+        <path d="${BODY}" ${bodyT} ${solid(isInk)}/>
+        <ellipse cx="59" cy="146" rx="9" ry="6" ${solid(isInk)}/>
+        <ellipse cx="81" cy="146" rx="9" ry="6" ${solid(isInk)}/>
+        ${headG(`${both(`<path d="${E.sil}" ${solid(isInk)}/>`)}<path d="${HEAD}" ${solid(isInk)}/>`)}`;
+
+      // ----- fur patterns -----
+      const hc = `clip-path="url(#${uid}h)"`, bc = `clip-path="url(#${uid}b)"`;
+      const stripeHead = `<path d="M70 32 v9 M60 34 l2 8 M80 34 l-2 8" stroke="${p.fur2}" stroke-width="4" stroke-linecap="round"/>`;
+      let headPat = '', bodyPat = '';
+      if (pat === 'stripes') headPat = stripeHead;
+      if (pat === 'tabby') {
+        headPat = stripeHead + `<path d="M26 58 l11 3 M26 67 l10 1 M114 58 l-11 3 M114 67 l-10 1" stroke="${p.fur2}" stroke-width="4" stroke-linecap="round" ${hc}/>`;
+        bodyPat = `<path d="M34 110 l12 4 M32 121 l12 2 M33 132 l10 0 M106 110 l-12 4 M108 121 l-12 2 M107 132 l-10 0" stroke="${p.fur2}" stroke-width="4" stroke-linecap="round" ${bc}/>`;
+      }
+      if (pat === 'patches') {
+        headPat = `<g ${hc}><circle cx="94" cy="44" r="19" fill="${f.patchC}"/><circle cx="36" cy="76" r="11" fill="${f.patchC}"/></g>`;
+        bodyPat = `<ellipse cx="94" cy="126" rx="15" ry="13" fill="${f.patchC}" ${bc}/>`;
+      }
+      if (pat === 'spots') {
+        headPat = `<g fill="${p.fur2}" ${hc}><circle cx="52" cy="40" r="4"/><circle cx="90" cy="42" r="5"/><circle cx="104" cy="62" r="3.5"/><circle cx="34" cy="56" r="3"/></g>`;
+        bodyPat = `<g fill="${p.fur2}" ${bc}><circle cx="48" cy="116" r="5"/><circle cx="96" cy="130" r="4"/><circle cx="88" cy="106" r="3"/><circle cx="44" cy="134" r="3"/></g>`;
+      }
+      if (pat === 'points') {
+        headPat = both(`<path d="${E.sil}" fill="${p.pt}"/>`) + `<ellipse cx="70" cy="72" rx="25" ry="20" fill="${p.pt}" opacity=".8" ${hc}/>`;
+      }
+
+      // ----- eyes -----
+      const bigEye = (cx) => `<ellipse cx="${cx}" cy="63" rx="9" ry="10.5" fill="#1b1430"/>
+        <ellipse cx="${cx}" cy="65" rx="3" ry="7" fill="${p.g1}" opacity=".35"/>
+        <circle cx="${cx + 3.5}" cy="58.5" r="3.8" fill="#fff"/><circle cx="${cx - 3}" cy="67.5" r="1.8" fill="#fff" opacity=".85"/>`;
+      const caret = (cx) => `<path d="M${cx - 9} 66 q9 -12 18 0" fill="none" stroke="#111" stroke-width="4.5" stroke-linecap="round"/>`;
+      const eyeSvg = {
+        big: `<g class="blink" style="transform-origin:70px 63px">${bigEye(52)}${bigEye(88)}</g>`,
+        happy: caret(54) + caret(86),
+        wink: `<g class="blink" style="transform-origin:52px 63px">${bigEye(52)}</g>${caret(86)}`,
+        star: `<g class="blink" style="transform-origin:70px 63px">
+            <ellipse cx="52" cy="63" rx="9.5" ry="11" fill="#1b1430"/><ellipse cx="88" cy="63" rx="9.5" ry="11" fill="#1b1430"/>
+            <path d="${star(52, 63, 7)} ${star(88, 63, 7)}" class="lens"/>
+            <circle cx="55" cy="58" r="2" fill="#fff"/><circle cx="91" cy="58" r="2" fill="#fff"/></g>`,
+        shades: `<rect x="35" y="53" width="70" height="19" rx="8" fill="#111"/>
+           <rect class="lens" x="39" y="56" width="27" height="13" rx="5"/>
+           <rect class="lens l2" x="74" y="56" width="27" height="13" rx="5"/>
+           <path d="M43 60 h7 M78 60 h7" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".9"/>`,
+        hearts: `<path d="M62 59 h16" stroke="#111" stroke-width="3.5" stroke-linecap="round"/>
+           <path class="lens" d="${heart(51, 62, 1.15)}" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+           <path class="lens l2" d="${heart(89, 62, 1.15)}" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+           <path d="M45 58 l4 -2 M83 58 l4 -2" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".9"/>`,
+        sleepy: `<path d="M44 63 q8 7 16 0 M80 63 q8 7 16 0" fill="none" stroke="#111" stroke-width="4" stroke-linecap="round"/>
+           <path d="M45 66 l-4 3 M59 66 l4 3 M81 66 l-4 3 M95 66 l4 3" stroke="#111" stroke-width="2" stroke-linecap="round"/>`,
+      }[f.eyes];
+
+      // ----- mouth -----
+      const mouth = (f.mouth === 'blep' ? `<ellipse class="mclosed" cx="70" cy="85.5" rx="3.3" ry="3.6" fill="#ff7aa8" stroke="#111" stroke-width="1.5"/>` : '')
+        + `<path class="mclosed" d="M63 80.5 q3.5 4 7 0 q3.5 4 7 0" fill="none" stroke="#111" stroke-width="2.6" stroke-linecap="round"/>`
+        + (f.mouth === 'fang' ? `<path class="mclosed" d="M72.5 82.5 l2 4 l2 -4.2 Z" fill="#fff" stroke="#111" stroke-width="1.2" stroke-linejoin="round"/>` : '')
+        + `<ellipse class="mopen" style="transform-origin:70px 82px" cx="70" cy="84" rx="5" ry="5" fill="#6b0f2a" stroke="#111" stroke-width="2.5"/>`;
+
+      // ----- headwear -----
+      const hatSvg = {
+        none: '',
+        headphones: `<path d="M29 72 C22 6 118 6 111 72" fill="none" stroke="#111" stroke-width="8" stroke-linecap="round"/>
+           <path d="M29 72 C22 6 118 6 111 72" fill="none" stroke="${p.g2}" stroke-width="3" stroke-linecap="round"/>
+           <rect x="19" y="60" width="15" height="25" rx="7" fill="${p.g2}" ${O}/>
+           <rect x="106" y="60" width="15" height="25" rx="7" fill="${p.g2}" ${O}/>`,
+        party: `<path d="M70 -6 L57 32 L83 32 Z" fill="${p.g2}" ${O}/>
+           <path d="M63 16 L77 16" stroke="${p.g1}" stroke-width="3.5" stroke-linecap="round"/>
+           <circle cx="70" cy="-7" r="5.5" fill="${p.g1}" ${O}/>`,
+        beanie: `<path d="M31 48 C31 14 109 14 109 48 Z" fill="${p.g2}" ${O}/>
+           <path d="M48 24 v22 M59 20 v26 M70 19 v27 M81 20 v26 M92 24 v22" stroke="${p.g1}" stroke-width="3" opacity=".55"/>
+           <rect x="27" y="40" width="86" height="13" rx="6.5" fill="${p.g1}" ${O}/>
+           <circle cx="70" cy="13" r="7.5" fill="${p.g1}" ${O}/>`,
+        bow: `<g transform="rotate(14 92 33)"><path d="M92 33 L77 23 L77 43 Z M92 33 L107 23 L107 43 Z" fill="${p.g2}" ${O}/>
+           <circle cx="92" cy="33" r="4.5" fill="${p.g1}" ${O}/></g>`,
+        boppers: `<path d="M55 33 C47 24 58 16 50 4 M85 33 C93 24 82 16 90 4" fill="none" stroke="#111" stroke-width="3" stroke-linecap="round"/>
+           <circle class="stick" cx="50" cy="1" r="6.5" stroke="#111" stroke-width="2"/>
+           <circle class="stick bop2" cx="90" cy="1" r="6.5" stroke="#111" stroke-width="2"/>`,
+      }[f.hat];
+
+      // ----- neckwear -----
+      const neckSvg = {
+        none: '',
+        collar: `<path d="M50 96 Q70 108 90 96" fill="none" stroke="#111" stroke-width="9" stroke-linecap="round"/>
+           <path d="M50 96 Q70 108 90 96" fill="none" stroke="${p.g2}" stroke-width="4.5" stroke-linecap="round"/>
+           <circle cx="70" cy="105" r="4.8" fill="#ffd23f" stroke="#111" stroke-width="2"/><path d="M70 106 v3" stroke="#111" stroke-width="1.5"/>`,
+        glow: `<path d="M50 96 Q70 108 90 96" fill="none" stroke="#111" stroke-width="7" stroke-linecap="round"/>
+           <path class="neon" d="M50 96 Q70 108 90 96" fill="none" stroke-width="3.5" stroke-linecap="round"/>`,
+        bandana: `<path d="M48 95 Q70 103 92 95 L73 116 Q70 119 67 116 Z" fill="${p.g2}" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+           <g fill="#fff" opacity=".7"><circle cx="62" cy="101" r="1.6"/><circle cx="78" cy="101" r="1.6"/><circle cx="70" cy="108" r="1.6"/></g>`,
+      }[f.neck];
+
+      // ----- arms, glowsticks, kandi -----
+      const ARM = (L) => L ? 'M52 108 L34 90' : 'M88 108 L106 90';
+      const PAW = (L) => L ? [34, 90] : [106, 90];
+      const armInk = (L) => `<path d="${ARM(L)}" ${ink(11)}/><circle cx="${PAW(L)[0]}" cy="${PAW(L)[1]}" r="7.5" ${solid(true)}/>`;
+      const stick = (L) => `<g transform="rotate(${L ? -28 : 28} ${PAW(L)[0]} ${PAW(L)[1]})"><rect class="stick" x="${PAW(L)[0] - 4}" y="${PAW(L)[1] - 36}" width="8" height="36" rx="4" stroke="#111" stroke-width="2"/>
+          <rect x="${PAW(L)[0] - 1.5}" y="${PAW(L)[1] - 32}" width="3" height="20" rx="1.5" fill="#fff" opacity=".75"/></g>`;
+      const kandi = (L) => {
+        if (!f.kandi) return '';
+        const d = L ? 'M34.8 99.2 L43.2 90.8' : 'M96.8 90.8 L105.2 99.2';
+        return `<path d="${d}" stroke="#111" stroke-width="7" stroke-linecap="round"/>
+          <path d="${d}" stroke="${p.g1}" stroke-width="4" stroke-dasharray="2.6 2.6"/>
+          <path d="${d}" stroke="${p.g2}" stroke-width="4" stroke-dasharray="2.6 2.6" stroke-dashoffset="2.6"/>`;
+      };
+      const armFur = (L) => `${stick(L)}<path d="${ARM(L)}" ${fur(11)}/>${kandi(L)}
+          <circle cx="${PAW(L)[0]}" cy="${PAW(L)[1]}" r="7.5" ${solid(false, pawC)}/>
+          <path d="M${PAW(L)[0] - 3} ${PAW(L)[1] - 6} v3 M${PAW(L)[0] + 3} ${PAW(L)[1] - 6} v3" stroke="#111" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>`;
+
+      const headDetails = headG(`
+        ${headPat}
+        ${both(`<path d="${E.inner}" fill="${p.inner}" stroke="${p.inner}" stroke-width="3" stroke-linejoin="round"/>`)}
+        ${E.tuft ? both(`<path d="${E.tuft}" stroke="#111" stroke-width="2.2" stroke-linecap="round"/>`) : ''}
+        ${pat === 'points' ? '' : `<ellipse cx="70" cy="81" rx="15" ry="9" fill="${pat === 'tuxedo' ? '#fff' : p.light}"/>`}
+        <ellipse cx="42" cy="77" rx="7.5" ry="4.5" fill="#ff5fa8" opacity=".5"/>
+        <ellipse cx="98" cy="77" rx="7.5" ry="4.5" fill="#ff5fa8" opacity=".5"/>
+        <path d="M27 76 L10 72 M27 81 L10 83 M113 76 L130 72 M113 81 L130 83" stroke="#111" stroke-width="2" stroke-linecap="round" opacity=".75"/>
+        ${eyeSvg}
+        <path d="M66.5 75 L73.5 75 L70 79 Z" fill="${p.inner}" stroke="#d14a7d" stroke-width="1.5" stroke-linejoin="round"/>
+        ${mouth}
+        ${hatSvg}`);
+
+      const bodyDetails = `
+        ${bodyPat}
+        <ellipse cx="70" cy="${pat === 'tuxedo' ? 121 : 124}" rx="${(pat === 'tuxedo' ? 18 : 15) * f.chonk}" ry="${pat === 'tuxedo' ? 19 : 15}" fill="${bellyC}" ${bc}/>
+        <ellipse cx="59" cy="146" rx="9" ry="6" fill="${pawC}"/><ellipse cx="81" cy="146" rx="9" ry="6" fill="${pawC}"/>
+        <path d="M56 149 v-3 M62 149 v-3 M78 149 v-3 M84 149 v-3" stroke="#111" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>`;
+
+      return `<svg viewBox="-6 -16 152 170" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <mask id="${uid}" maskUnits="userSpaceOnUse" x="-40" y="-40" width="230" height="230">
+            <rect x="-40" y="-40" width="230" height="230" fill="#fff"/>
+            <path d="${BODY}" ${bodyT} fill="#000"/>
+          </mask>
+          <clipPath id="${uid}h"><path d="${HEAD}"/></clipPath>
+          <clipPath id="${uid}b"><path d="${BODY}" ${bodyT}/></clipPath>
+        </defs>
+        ${tail}
+        ${silhouette(true)}
+        ${silhouette(false)}
+        ${bodyDetails}
+        ${neckSvg}
+        ${headDetails}
+        <g mask="url(#${uid})">${armG('L', armInk)}${armG('R', armInk)}</g>
+        ${armG('L', armFur)}${armG('R', armFur)}
+      </svg>`;
     }
-    if (pat === 'patches') {
-      headPat = `<g ${hc}><circle cx="94" cy="44" r="19" fill="${f.patchC}"/><circle cx="36" cy="76" r="11" fill="${f.patchC}"/></g>`;
-      bodyPat = `<ellipse cx="94" cy="126" rx="15" ry="13" fill="${f.patchC}" ${bc}/>`;
-    }
-    if (pat === 'spots') {
-      headPat = `<g fill="${p.fur2}" ${hc}><circle cx="52" cy="40" r="4"/><circle cx="90" cy="42" r="5"/><circle cx="104" cy="62" r="3.5"/><circle cx="34" cy="56" r="3"/></g>`;
-      bodyPat = `<g fill="${p.fur2}" ${bc}><circle cx="48" cy="116" r="5"/><circle cx="96" cy="130" r="4"/><circle cx="88" cy="106" r="3"/><circle cx="44" cy="134" r="3"/></g>`;
-    }
-    if (pat === 'points') {
-      headPat = both(`<path d="${E.sil}" fill="${p.pt}"/>`) + `<ellipse cx="70" cy="72" rx="25" ry="20" fill="${p.pt}" opacity=".8" ${hc}/>`;
-    }
+    return catSVG;
+  })();
 
-    // ----- eyes -----
-    const bigEye = (cx) => `<ellipse cx="${cx}" cy="63" rx="9" ry="10.5" fill="#1b1430"/>
-      <ellipse cx="${cx}" cy="65" rx="3" ry="7" fill="${p.g1}" opacity=".35"/>
-      <circle cx="${cx + 3.5}" cy="58.5" r="3.8" fill="#fff"/><circle cx="${cx - 3}" cy="67.5" r="1.8" fill="#fff" opacity=".85"/>`;
-    const caret = (cx) => `<path d="M${cx - 9} 66 q9 -12 18 0" fill="none" stroke="#111" stroke-width="4.5" stroke-linecap="round"/>`;
-    const eyeSvg = {
-      big: `<g class="blink" style="transform-origin:70px 63px">${bigEye(52)}${bigEye(88)}</g>`,
-      happy: caret(54) + caret(86),
-      wink: `<g class="blink" style="transform-origin:52px 63px">${bigEye(52)}</g>${caret(86)}`,
-      star: `<g class="blink" style="transform-origin:70px 63px">
-          <ellipse cx="52" cy="63" rx="9.5" ry="11" fill="#1b1430"/><ellipse cx="88" cy="63" rx="9.5" ry="11" fill="#1b1430"/>
-          <path d="${star(52, 63, 7)} ${star(88, 63, 7)}" class="lens"/>
-          <circle cx="55" cy="58" r="2" fill="#fff"/><circle cx="91" cy="58" r="2" fill="#fff"/></g>`,
-      shades: `<rect x="35" y="53" width="70" height="19" rx="8" fill="#111"/>
-         <rect class="lens" x="39" y="56" width="27" height="13" rx="5"/>
-         <rect class="lens l2" x="74" y="56" width="27" height="13" rx="5"/>
-         <path d="M43 60 h7 M78 60 h7" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".9"/>`,
-      hearts: `<path d="M62 59 h16" stroke="#111" stroke-width="3.5" stroke-linecap="round"/>
-         <path class="lens" d="${heart(51, 62, 1.15)}" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
-         <path class="lens l2" d="${heart(89, 62, 1.15)}" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
-         <path d="M45 58 l4 -2 M83 58 l4 -2" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".9"/>`,
-      sleepy: `<path d="M44 63 q8 7 16 0 M80 63 q8 7 16 0" fill="none" stroke="#111" stroke-width="4" stroke-linecap="round"/>
-         <path d="M45 66 l-4 3 M59 66 l4 3 M81 66 l-4 3 M95 66 l4 3" stroke="#111" stroke-width="2" stroke-linecap="round"/>`,
-    }[f.eyes];
-
-    // ----- mouth -----
-    const mouth = (f.mouth === 'blep' ? `<ellipse class="mclosed" cx="70" cy="85.5" rx="3.3" ry="3.6" fill="#ff7aa8" stroke="#111" stroke-width="1.5"/>` : '')
-      + `<path class="mclosed" d="M63 80.5 q3.5 4 7 0 q3.5 4 7 0" fill="none" stroke="#111" stroke-width="2.6" stroke-linecap="round"/>`
-      + (f.mouth === 'fang' ? `<path class="mclosed" d="M72.5 82.5 l2 4 l2 -4.2 Z" fill="#fff" stroke="#111" stroke-width="1.2" stroke-linejoin="round"/>` : '')
-      + `<ellipse class="mopen" style="transform-origin:70px 82px" cx="70" cy="84" rx="5" ry="5" fill="#6b0f2a" stroke="#111" stroke-width="2.5"/>`;
-
-    // ----- headwear -----
-    const hatSvg = {
-      none: '',
-      headphones: `<path d="M29 72 C22 6 118 6 111 72" fill="none" stroke="#111" stroke-width="8" stroke-linecap="round"/>
-         <path d="M29 72 C22 6 118 6 111 72" fill="none" stroke="${p.g2}" stroke-width="3" stroke-linecap="round"/>
-         <rect x="19" y="60" width="15" height="25" rx="7" fill="${p.g2}" ${O}/>
-         <rect x="106" y="60" width="15" height="25" rx="7" fill="${p.g2}" ${O}/>`,
-      party: `<path d="M70 -6 L57 32 L83 32 Z" fill="${p.g2}" ${O}/>
-         <path d="M63 16 L77 16" stroke="${p.g1}" stroke-width="3.5" stroke-linecap="round"/>
-         <circle cx="70" cy="-7" r="5.5" fill="${p.g1}" ${O}/>`,
-      beanie: `<path d="M31 48 C31 14 109 14 109 48 Z" fill="${p.g2}" ${O}/>
-         <path d="M48 24 v22 M59 20 v26 M70 19 v27 M81 20 v26 M92 24 v22" stroke="${p.g1}" stroke-width="3" opacity=".55"/>
-         <rect x="27" y="40" width="86" height="13" rx="6.5" fill="${p.g1}" ${O}/>
-         <circle cx="70" cy="13" r="7.5" fill="${p.g1}" ${O}/>`,
-      bow: `<g transform="rotate(14 92 33)"><path d="M92 33 L77 23 L77 43 Z M92 33 L107 23 L107 43 Z" fill="${p.g2}" ${O}/>
-         <circle cx="92" cy="33" r="4.5" fill="${p.g1}" ${O}/></g>`,
-      boppers: `<path d="M55 33 C47 24 58 16 50 4 M85 33 C93 24 82 16 90 4" fill="none" stroke="#111" stroke-width="3" stroke-linecap="round"/>
-         <circle class="stick" cx="50" cy="1" r="6.5" stroke="#111" stroke-width="2"/>
-         <circle class="stick bop2" cx="90" cy="1" r="6.5" stroke="#111" stroke-width="2"/>`,
-    }[f.hat];
-
-    // ----- neckwear -----
-    const neckSvg = {
-      none: '',
-      collar: `<path d="M50 96 Q70 108 90 96" fill="none" stroke="#111" stroke-width="9" stroke-linecap="round"/>
-         <path d="M50 96 Q70 108 90 96" fill="none" stroke="${p.g2}" stroke-width="4.5" stroke-linecap="round"/>
-         <circle cx="70" cy="105" r="4.8" fill="#ffd23f" stroke="#111" stroke-width="2"/><path d="M70 106 v3" stroke="#111" stroke-width="1.5"/>`,
-      glow: `<path d="M50 96 Q70 108 90 96" fill="none" stroke="#111" stroke-width="7" stroke-linecap="round"/>
-         <path class="neon" d="M50 96 Q70 108 90 96" fill="none" stroke-width="3.5" stroke-linecap="round"/>`,
-      bandana: `<path d="M48 95 Q70 103 92 95 L73 116 Q70 119 67 116 Z" fill="${p.g2}" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
-         <g fill="#fff" opacity=".7"><circle cx="62" cy="101" r="1.6"/><circle cx="78" cy="101" r="1.6"/><circle cx="70" cy="108" r="1.6"/></g>`,
-    }[f.neck];
-
-    // ----- arms, glowsticks, kandi -----
-    const ARM = (L) => L ? 'M52 108 L34 90' : 'M88 108 L106 90';
-    const PAW = (L) => L ? [34, 90] : [106, 90];
-    const armInk = (L) => `<path d="${ARM(L)}" ${ink(11)}/><circle cx="${PAW(L)[0]}" cy="${PAW(L)[1]}" r="7.5" ${solid(true)}/>`;
-    const stick = (L) => `<g transform="rotate(${L ? -28 : 28} ${PAW(L)[0]} ${PAW(L)[1]})"><rect class="stick" x="${PAW(L)[0] - 4}" y="${PAW(L)[1] - 36}" width="8" height="36" rx="4" stroke="#111" stroke-width="2"/>
-        <rect x="${PAW(L)[0] - 1.5}" y="${PAW(L)[1] - 32}" width="3" height="20" rx="1.5" fill="#fff" opacity=".75"/></g>`;
-    const kandi = (L) => {
-      if (!f.kandi) return '';
-      const d = L ? 'M34.8 99.2 L43.2 90.8' : 'M96.8 90.8 L105.2 99.2';
-      return `<path d="${d}" stroke="#111" stroke-width="7" stroke-linecap="round"/>
-        <path d="${d}" stroke="${p.g1}" stroke-width="4" stroke-dasharray="2.6 2.6"/>
-        <path d="${d}" stroke="${p.g2}" stroke-width="4" stroke-dasharray="2.6 2.6" stroke-dashoffset="2.6"/>`;
+  const drawDog = (() => {
+    // ---------------- dog drawing ----------------
+    // Same build as the cats: head + upright ears + body + front paws share one silhouette outline,
+    // the tail wags behind the body, and arms sit in front with their own (masked) outline.
+    // Floppy ears hang over the sides of the head with their own outline so they can flop to the beat.
+    // Pointy ears, a pale face mask and a bushy tail together read as a wolf.
+    let dogUid = 0;
+    const BODY = 'M55 94 C41 102 33 122 37 136 C39 148 101 148 103 136 C107 122 99 102 85 94 Z';
+    const HEAD = 'M27 64 C27 39 47 28 70 28 C93 28 113 39 113 64 C113 79 105 90 95 94 C87 98 53 98 45 94 C35 90 27 79 27 64 Z';
+    const MIRROR = 'matrix(-1 0 0 1 140 0)';
+    const EARS = {
+      wolf:   { sil: 'M30 60 C29 42 33 18 38 4 C47 12 57 23 64 32 Z', inner: 'M38 48 C38 36 40 24 42 16 C47 22 52 28 56 33 Z' },
+      perky:  { sil: 'M32 56 C30 38 34 20 40 12 C48 18 56 25 62 32 Z', inner: 'M40 46 C39 36 41 27 44 22 C48 26 52 29 55 33 Z' },
+      bat:    { sil: 'M27 62 C22 40 22 14 26 -2 C40 6 56 20 66 31 Z', inner: 'M36 50 C33 36 33 20 35 10 C44 17 52 25 58 32 Z' },
+      floppy: { flop: 'M44 34 C30 31 17 43 15 63 C13 80 21 92 30 88 C38 84 38 68 41 56 C43 47 49 40 44 34 Z' },
+      long:   { flop: 'M45 34 C30 30 18 44 17 70 C16 92 23 106 32 102 C40 98 38 76 41 60 C43 49 50 40 45 34 Z' },
+      tipped: { sil: 'M31 58 L37 18 L62 32 Z', inner: 'M39 46 L41 27 L55 34 Z', tip: 'M37 18 C30 18 25 25 26 34 L44 27 Z' },
     };
-    const armFur = (L) => `${stick(L)}<path d="${ARM(L)}" ${fur(11)}/>${kandi(L)}
-        <circle cx="${PAW(L)[0]}" cy="${PAW(L)[1]}" r="7.5" ${solid(false, pawC)}/>
-        <path d="M${PAW(L)[0] - 3} ${PAW(L)[1] - 6} v3 M${PAW(L)[0] + 3} ${PAW(L)[1] - 6} v3" stroke="#111" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>`;
+    const TAILS = {
+      curl:  { d: 'M92 130 C118 132 130 108 120 92 C114 82 102 88 108 98', w: 13, tip: null },
+      bushy: { d: 'M92 134 C114 142 132 128 132 104', w: 20, tip: 'M131 113 C132 108 132 104 131 100', tw: 13 },
+      whip:  { d: 'M92 132 C112 130 122 114 126 96', w: 8, tip: null },
+      plume: { d: 'M92 132 C116 134 128 116 124 94', w: 15, tip: 'M125 103 C125 99 124 96 123 93', tw: 9 },
+      stub:  { d: 'M94 134 C102 135 108 131 109 124', w: 14, tip: null },
+    };
 
-    const headDetails = headG(`
-      ${headPat}
-      ${both(`<path d="${E.inner}" fill="${p.inner}" stroke="${p.inner}" stroke-width="3" stroke-linejoin="round"/>`)}
-      ${E.tuft ? both(`<path d="${E.tuft}" stroke="#111" stroke-width="2.2" stroke-linecap="round"/>`) : ''}
-      ${pat === 'points' ? '' : `<ellipse cx="70" cy="81" rx="15" ry="9" fill="${pat === 'tuxedo' ? '#fff' : p.light}"/>`}
-      <ellipse cx="42" cy="77" rx="7.5" ry="4.5" fill="#ff5fa8" opacity=".5"/>
-      <ellipse cx="98" cy="77" rx="7.5" ry="4.5" fill="#ff5fa8" opacity=".5"/>
-      <path d="M27 76 L10 72 M27 81 L10 83 M113 76 L130 72 M113 81 L130 83" stroke="#111" stroke-width="2" stroke-linecap="round" opacity=".75"/>
-      ${eyeSvg}
-      <path d="M66.5 75 L73.5 75 L70 79 Z" fill="${p.inner}" stroke="#d14a7d" stroke-width="1.5" stroke-linejoin="round"/>
-      ${mouth}
-      ${hatSvg}`);
+    function dogSVG(p) {
+      const uid = 'm' + (++dogUid);
+      const R = rng(p.seed ^ 0x9e3779b9);
+      const f = {
+        ears: pick(R, ['wolf', 'wolf', 'perky', 'bat', 'floppy', 'floppy', 'long', 'tipped']),
+        tail: pick(R, ['curl', 'bushy', 'bushy', 'whip', 'plume', 'stub']),
+        pattern: pick(R, ['plain', 'mask', 'mask', 'spots', 'patch', 'points', 'socks']),
+        eyes: pick(R, ['big', 'big', 'big', 'shades', 'happy', 'star', 'wink', 'hearts', 'sleepy']),
+        mouth: pick(R, ['smile', 'smile', 'tongue', 'tongue', 'fang']),
+        hat: pick(R, ['none', 'none', 'headphones', 'party', 'beanie', 'bow', 'boppers']),
+        neck: pick(R, ['collar', 'collar', 'none', 'spikes', 'glow', 'bandana']),
+        kandi: R() < .45,
+        chonk: .93 + R() * .2,
+        patchC: pick(R, [p.alt, p.pt, p.fur2]),
+        patchSide: R() < .5 ? 'L' : 'R',
+      };
+      const E = EARS[f.ears], T = TAILS[f.tail];
+      const pat = f.pattern;
+      const paleC = pat === 'points' ? hsl(30, 70, 62) : p.cream;   // face mask, muzzle and belly
+      const pawC = pat === 'socks' ? '#fff' : pat === 'points' ? paleC : p.main;
+      const earC = pat === 'points' ? p.pt : p.fur2;
+      const bodyT = `transform="matrix(${f.chonk.toFixed(3)} 0 0 1 ${(70 - 70 * f.chonk).toFixed(2)} 0)"`;
+      const INK = 4;
+      const O = 'stroke="#111" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"';
 
-    const bodyDetails = `
-      ${bodyPat}
-      <ellipse cx="70" cy="${pat === 'tuxedo' ? 121 : 124}" rx="${(pat === 'tuxedo' ? 18 : 15) * f.chonk}" ry="${pat === 'tuxedo' ? 19 : 15}" fill="${bellyC}" ${bc}/>
-      <ellipse cx="59" cy="146" rx="9" ry="6" fill="${pawC}"/><ellipse cx="81" cy="146" rx="9" ry="6" fill="${pawC}"/>
-      <path d="M56 149 v-3 M62 149 v-3 M78 149 v-3 M84 149 v-3" stroke="#111" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>`;
+      const armG = (side, inner) => {
+        const L = side === 'L';
+        return `<g class="arm ${side}" style="--dir:${L ? 1 : -1};transform-origin:${L ? 52 : 88}px 108px">${inner(L)}</g>`;
+      };
+      const headG = (inner) => `<g class="head" style="transform-origin:70px 98px">${inner}</g>`;
+      const ink = (w) => `stroke="#111" stroke-width="${w + INK * 2}" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
+      const fur = (w, c = p.main) => `stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
+      const solid = (isInk, c = p.main) => isInk
+        ? `fill="#111" stroke="#111" stroke-width="${INK * 2}" stroke-linejoin="round"`
+        : `fill="${c}" stroke="${c}" stroke-width="1" stroke-linejoin="round"`;
+      const both = (svg) => svg + `<g transform="${MIRROR}">${svg}</g>`;
+      const mainC = pat === 'points' ? p.pt : p.main;   // black-and-tan dogs are dark all over
 
-    return `<svg viewBox="-6 -16 152 170" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <mask id="${uid}" maskUnits="userSpaceOnUse" x="-40" y="-40" width="230" height="230">
-          <rect x="-40" y="-40" width="230" height="230" fill="#fff"/>
-          <path d="${BODY}" ${bodyT} fill="#000"/>
-        </mask>
-        <clipPath id="${uid}h"><path d="${HEAD}"/></clipPath>
-        <clipPath id="${uid}b"><path d="${BODY}" ${bodyT}/></clipPath>
-      </defs>
-      ${tail}
-      ${silhouette(true)}
-      ${silhouette(false)}
-      ${bodyDetails}
-      ${neckSvg}
-      ${headDetails}
-      <g mask="url(#${uid})">${armG('L', armInk)}${armG('R', armInk)}</g>
-      ${armG('L', armFur)}${armG('R', armFur)}
-    </svg>`;
-  }
+      // ----- tail (wags twice as fast as a cat's) -----
+      const tail = `<g class="wag" style="transform-origin:93px 132px">
+          <path d="${T.d}" ${ink(T.w)}/><path d="${T.d}" ${fur(T.w, mainC)}/>
+          ${T.tip ? `<path d="${T.tip}" fill="none" stroke="${paleC}" stroke-width="${T.tw}" stroke-linecap="round"/>` : ''}
+        </g>`;
+
+      // ----- one-outline silhouette -----
+      const silhouette = (isInk) => `
+        <path d="${BODY}" ${bodyT} ${solid(isInk, mainC)}/>
+        <ellipse cx="58" cy="146" rx="9.5" ry="6" ${solid(isInk, mainC)}/>
+        <ellipse cx="82" cy="146" rx="9.5" ry="6" ${solid(isInk, mainC)}/>
+        ${headG(`${E.sil ? both(`<path d="${E.sil}" ${solid(isInk, mainC)}/>`) : ''}<path d="${HEAD}" ${solid(isInk, mainC)}/>`)}`;
+
+      // ----- fur patterns -----
+      const hc = `clip-path="url(#${uid}h)"`, bc = `clip-path="url(#${uid}b)"`;
+      let headPat = '', bodyPat = '';
+      if (pat === 'mask') {
+        // husky / wolf face: pale cheeks and brow spots around a darker cap
+        headPat = `<g fill="${paleC}" ${hc}><path d="M24 98 C24 80 34 70 46 74 C54 76 58 70 62 62 C66 68 68 70 70 70 C72 70 74 68 78 62 C82 70 86 76 94 74 C106 70 116 80 116 98 Z"/>
+            <ellipse cx="54" cy="49" rx="6" ry="4"/><ellipse cx="86" cy="49" rx="6" ry="4"/></g>`;
+      }
+      if (pat === 'points') {
+        headPat = `<g fill="${paleC}" ${hc}><ellipse cx="54" cy="50" rx="5.5" ry="4"/><ellipse cx="86" cy="50" rx="5.5" ry="4"/></g>`;
+        bodyPat = `<path d="M56 98 Q70 112 84 98 L84 106 Q70 120 56 106 Z" fill="${paleC}" ${bc}/>`;
+      }
+      if (pat === 'spots') {
+        headPat = `<g fill="${p.dark}" ${hc}><circle cx="46" cy="42" r="4.5"/><circle cx="96" cy="46" r="3.5"/><circle cx="106" cy="68" r="4"/><circle cx="33" cy="60" r="3"/><circle cx="78" cy="36" r="2.5"/></g>`;
+        bodyPat = `<g fill="${p.dark}" ${bc}><circle cx="46" cy="114" r="4.5"/><circle cx="97" cy="128" r="4"/><circle cx="90" cy="106" r="3"/><circle cx="44" cy="134" r="3.5"/><circle cx="62" cy="140" r="2.5"/></g>`;
+      }
+      if (pat === 'patch') {
+        const px = f.patchSide === 'L' ? 51 : 89;
+        headPat = `<ellipse cx="${px}" cy="61" rx="17" ry="15" fill="${f.patchC}" ${hc}/>`;
+        bodyPat = `<ellipse cx="${f.patchSide === 'L' ? 92 : 48}" cy="128" rx="14" ry="12" fill="${f.patchC}" ${bc}/>`;
+      }
+
+      // ----- ears that hang over the head (drawn with their own outline so they can flop) -----
+      const flop = (L) => `<g class="flop" style="--dir:${L ? 1 : -1};transform-origin:${L ? 44 : 96}px 36px">
+          ${L ? '' : `<g transform="${MIRROR}">`}<path d="${E.flop}" fill="${earC}" ${O}/>${L ? '' : '</g>'}</g>`;
+      const ears = E.flop ? flop(true) + flop(false)
+        : both(`<path d="${E.inner}" fill="${pat === 'points' ? p.pt : p.inner}" stroke="${pat === 'points' ? p.pt : p.inner}" stroke-width="3" stroke-linejoin="round"/>`)
+          + (E.tip ? both(`<path d="${E.tip}" fill="${earC}" ${O}/>`) : '');
+
+      // ----- eyes -----
+      const bigEye = (cx) => `<ellipse cx="${cx}" cy="61" rx="8.5" ry="9.5" fill="#1b1430"/>
+        <ellipse cx="${cx}" cy="63" rx="3" ry="6" fill="${p.g1}" opacity=".35"/>
+        <circle cx="${cx + 3}" cy="57" r="3.5" fill="#fff"/><circle cx="${cx - 3}" cy="65" r="1.7" fill="#fff" opacity=".85"/>`;
+      const caret = (cx) => `<path d="M${cx - 9} 64 q9 -12 18 0" fill="none" stroke="#111" stroke-width="4.5" stroke-linecap="round"/>`;
+      const eyeSvg = {
+        big: `<g class="blink" style="transform-origin:70px 61px">${bigEye(52)}${bigEye(88)}</g>`,
+        happy: caret(53) + caret(87),
+        wink: `<g class="blink" style="transform-origin:52px 61px">${bigEye(52)}</g>${caret(87)}`,
+        star: `<g class="blink" style="transform-origin:70px 61px">
+            <ellipse cx="52" cy="61" rx="9.5" ry="10.5" fill="#1b1430"/><ellipse cx="88" cy="61" rx="9.5" ry="10.5" fill="#1b1430"/>
+            <path d="${star(52, 61, 7)} ${star(88, 61, 7)}" class="lens"/>
+            <circle cx="55" cy="56" r="2" fill="#fff"/><circle cx="91" cy="56" r="2" fill="#fff"/></g>`,
+        shades: `<rect x="35" y="51" width="70" height="19" rx="8" fill="#111"/>
+           <rect class="lens" x="39" y="54" width="27" height="13" rx="5"/>
+           <rect class="lens l2" x="74" y="54" width="27" height="13" rx="5"/>
+           <path d="M43 58 h7 M78 58 h7" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".9"/>`,
+        hearts: `<path d="M62 57 h16" stroke="#111" stroke-width="3.5" stroke-linecap="round"/>
+           <path class="lens" d="${heart(51, 60, 1.15)}" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+           <path class="lens l2" d="${heart(89, 60, 1.15)}" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+           <path d="M45 56 l4 -2 M83 56 l4 -2" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".9"/>`,
+        sleepy: `<path d="M44 61 q8 7 16 0 M80 61 q8 7 16 0" fill="none" stroke="#111" stroke-width="4" stroke-linecap="round"/>
+           <path d="M45 64 l-4 3 M59 64 l4 3 M81 64 l-4 3 M95 64 l4 3" stroke="#111" stroke-width="2" stroke-linecap="round"/>`,
+      }[f.eyes];
+
+      // ----- muzzle, nose and mouth -----
+      const muzzle = `<ellipse cx="70" cy="82" rx="18" ry="12.5" fill="${paleC}" stroke="#111" stroke-width="2" stroke-opacity=".25"/>`;
+      const nose = `<path d="M61 71.5 C61 66 79 66 79 71.5 C79 76 74 79.5 70 79.5 C66 79.5 61 76 61 71.5 Z" fill="#1b1430" stroke="#111" stroke-width="1.5"/>
+        <ellipse cx="66" cy="70" rx="3" ry="1.8" fill="#fff" opacity=".7"/>`;
+      const mouth = `<path class="mclosed" d="M70 79.5 v3.5 M61 82 q4.5 5 9 1 q4.5 4 9 -1" fill="none" stroke="#111" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>`
+        + (f.mouth === 'tongue' ? `<path class="mclosed" d="M65.5 85.5 h9 v5 a4.5 4.5 0 0 1 -9 0 Z" fill="#ff7aa8" stroke="#111" stroke-width="1.8" stroke-linejoin="round"/>
+             <path class="mclosed" d="M70 86 v4.5" stroke="#d14a7d" stroke-width="1.4" stroke-linecap="round"/>` : '')
+        + (f.mouth === 'fang' ? `<path class="mclosed" d="M62.5 84.2 l1.8 4.2 l2 -3.4 Z M77.5 84.2 l-1.8 4.2 l-2 -3.4 Z" fill="#fff" stroke="#111" stroke-width="1.2" stroke-linejoin="round"/>` : '')
+        + `<g class="mopen" style="transform-origin:70px 83px"><ellipse cx="70" cy="87" rx="7" ry="6.5" fill="#6b0f2a" stroke="#111" stroke-width="2.5"/>
+             <ellipse cx="70" cy="91" rx="4.2" ry="2.6" fill="#ff7aa8"/></g>`;
+
+      // ----- headwear -----
+      const hatSvg = {
+        none: '',
+        headphones: `<path d="M28 70 C21 4 119 4 112 70" fill="none" stroke="#111" stroke-width="8" stroke-linecap="round"/>
+           <path d="M28 70 C21 4 119 4 112 70" fill="none" stroke="${p.g2}" stroke-width="3" stroke-linecap="round"/>
+           <rect x="18" y="58" width="15" height="25" rx="7" fill="${p.g2}" ${O}/>
+           <rect x="107" y="58" width="15" height="25" rx="7" fill="${p.g2}" ${O}/>`,
+        party: `<path d="M70 -7 L57 31 L83 31 Z" fill="${p.g2}" ${O}/>
+           <path d="M63 15 L77 15" stroke="${p.g1}" stroke-width="3.5" stroke-linecap="round"/>
+           <circle cx="70" cy="-8" r="5.5" fill="${p.g1}" ${O}/>`,
+        beanie: `<path d="M30 47 C30 13 110 13 110 47 Z" fill="${p.g2}" ${O}/>
+           <path d="M48 23 v22 M59 19 v26 M70 18 v27 M81 19 v26 M92 23 v22" stroke="${p.g1}" stroke-width="3" opacity=".55"/>
+           <rect x="26" y="39" width="88" height="13" rx="6.5" fill="${p.g1}" ${O}/>
+           <circle cx="70" cy="12" r="7.5" fill="${p.g1}" ${O}/>`,
+        bow: `<g transform="rotate(14 92 32)"><path d="M92 32 L77 22 L77 42 Z M92 32 L107 22 L107 42 Z" fill="${p.g2}" ${O}/>
+           <circle cx="92" cy="32" r="4.5" fill="${p.g1}" ${O}/></g>`,
+        boppers: `<path d="M55 32 C47 23 58 15 50 3 M85 32 C93 23 82 15 90 3" fill="none" stroke="#111" stroke-width="3" stroke-linecap="round"/>
+           <circle class="stick" cx="50" cy="0" r="6.5" stroke="#111" stroke-width="2"/>
+           <circle class="stick bop2" cx="90" cy="0" r="6.5" stroke="#111" stroke-width="2"/>`,
+      }[f.hat];
+
+      // ----- neckwear -----
+      const SPIKES = [52, 61, 70, 79, 88];
+      const neckSvg = {
+        none: '',
+        collar: `<path d="M50 96 Q70 108 90 96" fill="none" stroke="#111" stroke-width="9" stroke-linecap="round"/>
+           <path d="M50 96 Q70 108 90 96" fill="none" stroke="${p.g2}" stroke-width="4.5" stroke-linecap="round"/>
+           <path d="M64 104 h12 l-2 5 l2 5 h-12 l2 -5 Z" fill="#ffd23f" stroke="#111" stroke-width="2" stroke-linejoin="round"/>`,
+        spikes: `<path d="M49 96 Q70 108 91 96" fill="none" stroke="#111" stroke-width="10" stroke-linecap="round"/>
+           <path d="M49 96 Q70 108 91 96" fill="none" stroke="#2a2235" stroke-width="5.5" stroke-linecap="round"/>
+           ${SPIKES.map(x => { const y = 96 + 12 * (1 - ((x - 70) / 21) ** 2) * .5 + 1; return `<path d="M${x - 3} ${y.toFixed(1)} L${x} ${(y + 6).toFixed(1)} L${x + 3} ${y.toFixed(1)} Z" fill="#e8e8f0" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/>`; }).join('')}`,
+        glow: `<path d="M50 96 Q70 108 90 96" fill="none" stroke="#111" stroke-width="7" stroke-linecap="round"/>
+           <path class="neon" d="M50 96 Q70 108 90 96" fill="none" stroke-width="3.5" stroke-linecap="round"/>`,
+        bandana: `<path d="M47 95 Q70 103 93 95 L73 117 Q70 120 67 117 Z" fill="${p.g2}" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+           <g fill="#fff" opacity=".7"><circle cx="62" cy="101" r="1.6"/><circle cx="78" cy="101" r="1.6"/><circle cx="70" cy="108" r="1.6"/></g>`,
+      }[f.neck];
+
+      // ----- arms, glowsticks, kandi -----
+      const ARM = (L) => L ? 'M52 108 L34 90' : 'M88 108 L106 90';
+      const PAW = (L) => L ? [34, 90] : [106, 90];
+      const armInk = (L) => `<path d="${ARM(L)}" ${ink(11)}/><circle cx="${PAW(L)[0]}" cy="${PAW(L)[1]}" r="7.5" ${solid(true)}/>`;
+      const stick = (L) => `<g transform="rotate(${L ? -28 : 28} ${PAW(L)[0]} ${PAW(L)[1]})"><rect class="stick" x="${PAW(L)[0] - 4}" y="${PAW(L)[1] - 36}" width="8" height="36" rx="4" stroke="#111" stroke-width="2"/>
+          <rect x="${PAW(L)[0] - 1.5}" y="${PAW(L)[1] - 32}" width="3" height="20" rx="1.5" fill="#fff" opacity=".75"/></g>`;
+      const kandi = (L) => {
+        if (!f.kandi) return '';
+        const d = L ? 'M34.8 99.2 L43.2 90.8' : 'M96.8 90.8 L105.2 99.2';
+        return `<path d="${d}" stroke="#111" stroke-width="7" stroke-linecap="round"/>
+          <path d="${d}" stroke="${p.g1}" stroke-width="4" stroke-dasharray="2.6 2.6"/>
+          <path d="${d}" stroke="${p.g2}" stroke-width="4" stroke-dasharray="2.6 2.6" stroke-dashoffset="2.6"/>`;
+      };
+      const armFur = (L) => `${stick(L)}<path d="${ARM(L)}" ${fur(11, mainC)}/>${kandi(L)}
+          <circle cx="${PAW(L)[0]}" cy="${PAW(L)[1]}" r="7.5" ${solid(false, pawC)}/>
+          <path d="M${PAW(L)[0] - 3} ${PAW(L)[1] - 6} v3 M${PAW(L)[0] + 3} ${PAW(L)[1] - 6} v3" stroke="#111" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>`;
+
+      const headDetails = headG(`
+        ${headPat}
+        ${E.flop ? '' : ears}
+        <ellipse cx="44" cy="78" rx="7" ry="4.2" fill="#ff5fa8" opacity=".45"/>
+        <ellipse cx="96" cy="78" rx="7" ry="4.2" fill="#ff5fa8" opacity=".45"/>
+        ${muzzle}
+        ${eyeSvg}
+        ${mouth}
+        ${nose}
+        ${E.flop ? ears : ''}
+        ${hatSvg}`);
+
+      const bodyDetails = `
+        ${bodyPat}
+        <ellipse cx="70" cy="124" rx="${15 * f.chonk}" ry="15" fill="${pat === 'plain' || pat === 'spots' ? p.light : paleC}" ${bc}/>
+        <ellipse cx="58" cy="146" rx="9.5" ry="6" fill="${pawC}"/><ellipse cx="82" cy="146" rx="9.5" ry="6" fill="${pawC}"/>
+        <path d="M55 149 v-3 M61 149 v-3 M79 149 v-3 M85 149 v-3" stroke="#111" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>`;
+
+      return `<svg viewBox="-6 -16 152 170" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <mask id="${uid}" maskUnits="userSpaceOnUse" x="-40" y="-40" width="230" height="230">
+            <rect x="-40" y="-40" width="230" height="230" fill="#fff"/>
+            <path d="${BODY}" ${bodyT} fill="#000"/>
+          </mask>
+          <clipPath id="${uid}h"><path d="${HEAD}"/></clipPath>
+          <clipPath id="${uid}b"><path d="${BODY}" ${bodyT}/></clipPath>
+        </defs>
+        ${tail}
+        ${silhouette(true)}
+        ${silhouette(false)}
+        ${bodyDetails}
+        ${neckSvg}
+        ${headDetails}
+        <g mask="url(#${uid})">${armG('L', armInk)}${armG('R', armInk)}</g>
+        ${armG('L', armFur)}${armG('R', armFur)}
+      </svg>`;
+    }
+    return dogSVG;
+  })();
+
+  const drawBee = (() => {
+    // ---------------- bee drawing ----------------
+    // Head + antennae + body + feet share one silhouette outline (no seams between them).
+    // Wings sit behind the body; arms sit in front with their own outline, which is masked
+    // away inside the body so the shoulder joint stays open instead of a closed ring.
+    // Every look is picked from a PRNG seeded by the username, so a chatter always gets the same bee.
+    let beeUid = 0;
+    const BODY = 'M70 92 C46 92 32 110 34 128 C36 148 104 148 106 128 C108 110 94 92 70 92 Z';
+    const HEAD = 'M28 66 C28 40 48 29 70 29 C92 29 112 40 112 66 C112 80 104 90 94 94 C86 98 54 98 46 94 C36 90 28 80 28 66 Z';
+    const MIRROR = 'matrix(-1 0 0 1 140 0)';
+    const ANTENNAE = {
+      ball:  { d: 'M57 33 C54 20 46 12 40 6', tip: 'ball', x: 40, y: 4 },
+      long:  { d: 'M58 33 C55 14 38 4 27 -2', tip: 'ball', x: 26, y: -4 },
+      heart: { d: 'M57 33 C54 20 46 12 40 7', tip: 'heart', x: 39, y: 0 },
+      curl:  { d: 'M57 33 C53 18 37 14 37 4 C37 -5 49 -5 49 2 C49 7 42 7 42 3', tip: null },
+    };
+    // left-side wings as [cx, cy, rx, ry, angle], upper wing first; the right side is mirrored
+    const WINGS = {
+      round: [[20, 101, 25, 14, 34], [28, 124, 14, 8, -15]],
+      long:  [[20, 100, 28, 11, 35], [28, 126, 17, 7, -12]],
+      tiny:  [[22, 104, 19, 11, 32]],
+      heart: null,
+    };
+    const STRIPES = {
+      classic: { ys: [111, 127, 143], w: 9 },
+      thin:    { ys: [107, 117, 127, 137], w: 5 },
+      wide:    { ys: [116, 139], w: 12 },
+    };
+
+
+    function beeSVG(p) {
+      const uid = 'm' + (++beeUid);
+      const R = rng(p.seed ^ 0x9e3779b9);
+      const f = {
+        antennae: pick(R, ['ball', 'ball', 'long', 'heart', 'curl']),
+        wings: pick(R, ['round', 'round', 'long', 'tiny', 'heart']),
+        stripes: pick(R, ['classic', 'classic', 'thin', 'wide']),
+        eyes: pick(R, ['big', 'big', 'big', 'shades', 'happy', 'star', 'wink', 'hearts', 'sleepy']),
+        mouth: pick(R, ['smile', 'smile', 'fang', 'blep']),
+        hat: pick(R, ['none', 'none', 'headphones', 'party', 'beanie', 'bow']),
+        neck: pick(R, ['none', 'none', 'fluff', 'glow', 'bandana']),
+        kandi: R() < .45,
+        glowTip: R() < .3,
+        glowWings: R() < .3,
+        chonk: .93 + R() * .2,
+        stripeC: pick(R, ['#241b2f', '#241b2f', p.dark]),
+        tipC: pick(R, [p.dark, p.main, p.g2]),
+      };
+      const A = ANTENNAE[f.antennae], ST = STRIPES[f.stripes];
+      const footC = p.dark;
+      const bodyT = `transform="matrix(${f.chonk.toFixed(3)} 0 0 1 ${(70 - 70 * f.chonk).toFixed(2)} 0)"`;
+      const INK = 4;
+      const O = 'stroke="#111" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"';
+
+      const armG = (side, inner) => {
+        const L = side === 'L';
+        return `<g class="arm ${side}" style="--dir:${L ? 1 : -1};transform-origin:${L ? 52 : 88}px 108px">${inner(L)}</g>`;
+      };
+      const headG = (inner) => `<g class="head" style="transform-origin:70px 98px">${inner}</g>`;
+      const ink = (w) => `stroke="#111" stroke-width="${w + INK * 2}" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
+      const fur = (w, c = p.main) => `stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
+      const solid = (isInk, c = p.main) => isInk
+        ? `fill="#111" stroke="#111" stroke-width="${INK * 2}" stroke-linejoin="round"`
+        : `fill="${c}" stroke="${c}" stroke-width="1" stroke-linejoin="round"`;
+      const both = (svg) => svg + `<g transform="${MIRROR}">${svg}</g>`;
+
+      // ----- wings -----
+      const wingShapes = (attrs) => WINGS[f.wings]
+        ? WINGS[f.wings].slice().reverse().map(([x, y, rx, ry, a]) =>
+            `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" transform="rotate(${a} ${x} ${y})" ${attrs}/>`).join('')
+        : `<path d="${heart(20, 102, 1.4)}" transform="rotate(-60 20 102)" ${attrs}/>`;
+      const wingSvg = wingShapes(`fill="${p.light}" fill-opacity=".7" stroke="#111" stroke-width="3.5" stroke-linejoin="round"`)
+        + (f.glowWings ? wingShapes('class="neon" fill="none" stroke-width="2"') : '');
+      const wing = (L) => `<g class="wing" style="--dir:${L ? 1 : -1};transform-origin:${L ? 40 : 100}px 116px">${L ? wingSvg : `<g transform="${MIRROR}">${wingSvg}</g>`}</g>`;
+
+      // ----- one-outline silhouette -----
+      const antenna = (isInk) => {
+        const stem = `<path d="${A.d}" stroke="${isInk ? '#111' : p.dark}" stroke-width="${isInk ? 3.5 + INK * 2 : 3.5}" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
+        const glow = !isInk && f.glowTip ? 'class="stick" ' : '';
+        const tip = A.tip === 'ball' ? `<circle ${glow}cx="${A.x}" cy="${A.y}" r="6" ${solid(isInk, f.tipC)}/>`
+          : A.tip === 'heart' ? `<path ${glow}d="${heart(A.x, A.y, .55)}" ${solid(isInk, f.tipC)}/>` : '';
+        return stem + tip;
+      };
+      const silhouette = (isInk) => `
+        <path d="${BODY}" ${bodyT} ${solid(isInk)}/>
+        <ellipse cx="57" cy="146" rx="9" ry="6" ${solid(isInk, footC)}/>
+        <ellipse cx="83" cy="146" rx="9" ry="6" ${solid(isInk, footC)}/>
+        ${headG(`${both(antenna(isInk))}<path d="${HEAD}" ${solid(isInk)}/>`)}`;
+
+      // ----- stripes -----
+      const bc = `clip-path="url(#${uid}b)"`;
+      const stripes = `<g ${bc}>${ST.ys.map(y => `<path d="M20 ${y - 5} Q70 ${y + 7} 120 ${y - 5}" fill="none" stroke="${f.stripeC}" stroke-width="${ST.w}"/>`).join('')}</g>`;
+
+      // ----- eyes -----
+      const bigEye = (cx) => `<ellipse cx="${cx}" cy="63" rx="9" ry="10.5" fill="#1b1430"/>
+        <ellipse cx="${cx}" cy="65" rx="3" ry="7" fill="${p.g1}" opacity=".35"/>
+        <circle cx="${cx + 3.5}" cy="58.5" r="3.8" fill="#fff"/><circle cx="${cx - 3}" cy="67.5" r="1.8" fill="#fff" opacity=".85"/>`;
+      const caret = (cx) => `<path d="M${cx - 9} 66 q9 -12 18 0" fill="none" stroke="#111" stroke-width="4.5" stroke-linecap="round"/>`;
+      const eyeSvg = {
+        big: `<g class="blink" style="transform-origin:70px 63px">${bigEye(52)}${bigEye(88)}</g>`,
+        happy: caret(54) + caret(86),
+        wink: `<g class="blink" style="transform-origin:52px 63px">${bigEye(52)}</g>${caret(86)}`,
+        star: `<g class="blink" style="transform-origin:70px 63px">
+            <ellipse cx="52" cy="63" rx="9.5" ry="11" fill="#1b1430"/><ellipse cx="88" cy="63" rx="9.5" ry="11" fill="#1b1430"/>
+            <path d="${star(52, 63, 7)} ${star(88, 63, 7)}" class="lens"/>
+            <circle cx="55" cy="58" r="2" fill="#fff"/><circle cx="91" cy="58" r="2" fill="#fff"/></g>`,
+        shades: `<rect x="35" y="53" width="70" height="19" rx="8" fill="#111"/>
+           <rect class="lens" x="39" y="56" width="27" height="13" rx="5"/>
+           <rect class="lens l2" x="74" y="56" width="27" height="13" rx="5"/>
+           <path d="M43 60 h7 M78 60 h7" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".9"/>`,
+        hearts: `<path d="M62 59 h16" stroke="#111" stroke-width="3.5" stroke-linecap="round"/>
+           <path class="lens" d="${heart(51, 62, 1.15)}" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+           <path class="lens l2" d="${heart(89, 62, 1.15)}" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+           <path d="M45 58 l4 -2 M83 58 l4 -2" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".9"/>`,
+        sleepy: `<path d="M44 63 q8 7 16 0 M80 63 q8 7 16 0" fill="none" stroke="#111" stroke-width="4" stroke-linecap="round"/>
+           <path d="M45 66 l-4 3 M59 66 l4 3 M81 66 l-4 3 M95 66 l4 3" stroke="#111" stroke-width="2" stroke-linecap="round"/>`,
+      }[f.eyes];
+
+      // ----- mouth -----
+      const mouth = (f.mouth === 'blep' ? `<ellipse class="mclosed" cx="70" cy="86.5" rx="3.3" ry="3.6" fill="#ff7aa8" stroke="#111" stroke-width="1.5"/>` : '')
+        + `<path class="mclosed" d="M63 80 q7 7 14 0" fill="none" stroke="#111" stroke-width="2.6" stroke-linecap="round"/>`
+        + (f.mouth === 'fang' ? `<path class="mclosed" d="M71.5 82.8 l2 4 l2 -4.6 Z" fill="#fff" stroke="#111" stroke-width="1.2" stroke-linejoin="round"/>` : '')
+        + `<ellipse class="mopen" style="transform-origin:70px 82px" cx="70" cy="84" rx="5" ry="5" fill="#6b0f2a" stroke="#111" stroke-width="2.5"/>`;
+
+      // ----- headwear -----
+      const hatSvg = {
+        none: '',
+        headphones: `<path d="M29 72 C22 6 118 6 111 72" fill="none" stroke="#111" stroke-width="8" stroke-linecap="round"/>
+           <path d="M29 72 C22 6 118 6 111 72" fill="none" stroke="${p.g2}" stroke-width="3" stroke-linecap="round"/>
+           <rect x="19" y="60" width="15" height="25" rx="7" fill="${p.g2}" ${O}/>
+           <rect x="106" y="60" width="15" height="25" rx="7" fill="${p.g2}" ${O}/>`,
+        party: `<path d="M70 -6 L57 32 L83 32 Z" fill="${p.g2}" ${O}/>
+           <path d="M63 16 L77 16" stroke="${p.g1}" stroke-width="3.5" stroke-linecap="round"/>
+           <circle cx="70" cy="-7" r="5.5" fill="${p.g1}" ${O}/>`,
+        beanie: `<path d="M31 48 C31 14 109 14 109 48 Z" fill="${p.g2}" ${O}/>
+           <path d="M48 24 v22 M59 20 v26 M70 19 v27 M81 20 v26 M92 24 v22" stroke="${p.g1}" stroke-width="3" opacity=".55"/>
+           <rect x="27" y="40" width="86" height="13" rx="6.5" fill="${p.g1}" ${O}/>
+           <circle cx="70" cy="13" r="7.5" fill="${p.g1}" ${O}/>`,
+        bow: `<g transform="rotate(14 92 33)"><path d="M92 33 L77 23 L77 43 Z M92 33 L107 23 L107 43 Z" fill="${p.g2}" ${O}/>
+           <circle cx="92" cy="33" r="4.5" fill="${p.g1}" ${O}/></g>`,
+      }[f.hat];
+
+      // ----- neckwear -----
+      const FLUFF = [[48, 95], [56, 100], [63, 103], [70, 104], [77, 103], [84, 100], [92, 95]];
+      const neckSvg = {
+        none: '',
+        fluff: `<g fill="#111">${FLUFF.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="7.5"/>`).join('')}</g>
+           <g fill="${p.light}">${FLUFF.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="5.8"/>`).join('')}</g>`,
+        glow: `<path d="M50 96 Q70 108 90 96" fill="none" stroke="#111" stroke-width="7" stroke-linecap="round"/>
+           <path class="neon" d="M50 96 Q70 108 90 96" fill="none" stroke-width="3.5" stroke-linecap="round"/>`,
+        bandana: `<path d="M48 95 Q70 103 92 95 L73 116 Q70 119 67 116 Z" fill="${p.g2}" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+           <g fill="#fff" opacity=".7"><circle cx="62" cy="101" r="1.6"/><circle cx="78" cy="101" r="1.6"/><circle cx="70" cy="108" r="1.6"/></g>`,
+      }[f.neck];
+
+      // ----- arms, glowsticks, kandi -----
+      const ARM = (L) => L ? 'M52 108 L34 90' : 'M88 108 L106 90';
+      const HAND = (L) => L ? [34, 90] : [106, 90];
+      const armInk = (L) => `<path d="${ARM(L)}" ${ink(11)}/><circle cx="${HAND(L)[0]}" cy="${HAND(L)[1]}" r="7.5" ${solid(true)}/>`;
+      const stick = (L) => `<g transform="rotate(${L ? -28 : 28} ${HAND(L)[0]} ${HAND(L)[1]})"><rect class="stick" x="${HAND(L)[0] - 4}" y="${HAND(L)[1] - 36}" width="8" height="36" rx="4" stroke="#111" stroke-width="2"/>
+          <rect x="${HAND(L)[0] - 1.5}" y="${HAND(L)[1] - 32}" width="3" height="20" rx="1.5" fill="#fff" opacity=".75"/></g>`;
+      const kandi = (L) => {
+        if (!f.kandi) return '';
+        const d = L ? 'M34.8 99.2 L43.2 90.8' : 'M96.8 90.8 L105.2 99.2';
+        return `<path d="${d}" stroke="#111" stroke-width="7" stroke-linecap="round"/>
+          <path d="${d}" stroke="${p.g1}" stroke-width="4" stroke-dasharray="2.6 2.6"/>
+          <path d="${d}" stroke="${p.g2}" stroke-width="4" stroke-dasharray="2.6 2.6" stroke-dashoffset="2.6"/>`;
+      };
+      const armFur = (L) => `${stick(L)}<path d="${ARM(L)}" ${fur(11)}/>${kandi(L)}
+          <circle cx="${HAND(L)[0]}" cy="${HAND(L)[1]}" r="7.5" ${solid(false, footC)}/>`;
+
+      const headDetails = headG(`
+        <ellipse cx="42" cy="77" rx="7.5" ry="4.5" fill="#ff5fa8" opacity=".5"/>
+        <ellipse cx="98" cy="77" rx="7.5" ry="4.5" fill="#ff5fa8" opacity=".5"/>
+        ${eyeSvg}
+        ${mouth}
+        ${hatSvg}`);
+
+      return `<svg viewBox="-6 -16 152 170" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <mask id="${uid}" maskUnits="userSpaceOnUse" x="-40" y="-40" width="230" height="230">
+            <rect x="-40" y="-40" width="230" height="230" fill="#fff"/>
+            <path d="${BODY}" ${bodyT} fill="#000"/>
+          </mask>
+          <clipPath id="${uid}b"><path d="${BODY}" ${bodyT}/></clipPath>
+        </defs>
+        ${wing(true)}${wing(false)}
+        ${silhouette(true)}
+        ${silhouette(false)}
+        ${stripes}
+        ${neckSvg}
+        ${headDetails}
+        <g mask="url(#${uid})">${armG('L', armInk)}${armG('R', armInk)}</g>
+        ${armG('L', armFur)}${armG('R', armFur)}
+      </svg>`;
+    }
+    return beeSVG;
+  })();
+
+  const drawPumpkin = (() => {
+    // ---------------- pumpkin drawing ----------------
+    // Pumpkin head + stem + body + boots share one silhouette outline (no seams between them).
+    // A cape (if any) sits behind the body; arms sit in front with their own outline, which is masked
+    // away inside the body so the shoulder joint stays open instead of a closed ring.
+    // Every look is picked from a PRNG seeded by the username, so a chatter always gets the same pumpkin.
+    let pumpkinUid = 0;
+    const BODY = 'M58 94 C48 102 43 122 46 136 C48 148 92 148 94 136 C97 122 92 102 82 94 Z';
+    // head lobes as [cx, cy, rx, ry], drawn outside-in so each inner lobe's edge reads as a rib
+    const LOBES = [[44, 66, 22, 28], [96, 66, 22, 28], [57, 65, 22, 31], [83, 65, 22, 31], [70, 64, 25, 32]];
+    const PUMPKINS = [
+      { pk: '#ff8a1f', rib: '#d4600a' },
+      { pk: '#ff8a1f', rib: '#d4600a' },
+      { pk: '#ff7414', rib: '#c24c04' },
+      { pk: '#ffa424', rib: '#d77a0c' },
+      { pk: '#f2ece0', rib: '#c9bfae' },
+      { pk: '#86b84f', rib: '#5a8430' },
+    ];
+    const STEMS = {
+      stub:  { d: 'M65 37 C64 28 63 22 60 17 C63 14 70 14 73 17 C72 24 75 30 76 37 Z' },
+      tall:  { d: 'M66 37 C66 24 62 12 56 4 C59 1 64 1 66 3 C71 12 75 26 75 37 Z' },
+      curly: { d: 'M65 37 C64 28 63 22 60 17 C63 14 70 14 73 17 C72 24 75 30 76 37 Z', vine: 'M73 27 C84 21 92 26 90 32 C88 37 82 35 83 31' },
+      leaf:  { d: 'M65 37 C64 28 63 22 60 17 C63 14 70 14 73 17 C72 24 75 30 76 37 Z', leaf: 'M74 25 C80 13 95 13 99 19 C93 28 81 29 74 25 Z' },
+    };
+
+
+    function pumpkinSVG(p) {
+      const uid = 'm' + (++pumpkinUid);
+      const R = rng(p.seed ^ 0x9e3779b9);
+      const f = {
+        pumpkin: pick(R, PUMPKINS),
+        stem: pick(R, ['stub', 'stub', 'tall', 'curly', 'leaf']),
+        stemC: pick(R, ['#6b4a1e', '#6b4a1e', '#4f7a2a']),
+        outfit: pick(R, ['plain', 'stripes', 'buttons', 'bones', 'zipper']),
+        eyes: pick(R, ['tri', 'tri', 'angry', 'round', 'happy', 'star', 'cute', 'shades', 'hearts', 'wink']),
+        nose: R() < .6,
+        mouth: pick(R, ['grin', 'grin', 'smile', 'fangs', 'oh']),
+        hat: pick(R, ['none', 'none', 'headphones', 'party', 'beanie', 'bow']),
+        neck: pick(R, ['none', 'none', 'bowtie', 'glow', 'bandana']),
+        cape: R() < .35,
+        capeC: pick(R, ['#2b1745', '#1a1a22', '#6d0f1f']),
+        kandi: R() < .45,
+        chonk: .9 + R() * .12,
+      };
+      const PK = f.pumpkin, bootC = '#2b1d14';
+      const bodyT = `transform="matrix(${f.chonk.toFixed(3)} 0 0 1 ${(70 - 70 * f.chonk).toFixed(2)} 0)"`;
+      const INK = 4;
+      const O = 'stroke="#111" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"';
+
+      const armG = (side, inner) => {
+        const L = side === 'L';
+        return `<g class="arm ${side}" style="--dir:${L ? 1 : -1};transform-origin:${L ? 52 : 88}px 108px">${inner(L)}</g>`;
+      };
+      const headG = (inner) => `<g class="head" style="transform-origin:70px 98px">${inner}</g>`;
+      const ink = (w) => `stroke="#111" stroke-width="${w + INK * 2}" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
+      const fur = (w, c = p.main) => `stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
+      const solid = (isInk, c = p.main) => isInk
+        ? `fill="#111" stroke="#111" stroke-width="${INK * 2}" stroke-linejoin="round"`
+        : `fill="${c}" stroke="${c}" stroke-width="1" stroke-linejoin="round"`;
+
+      // ----- costumes: most pumpkins dress up as something recognizable -----
+      // Each costume can add layers: back (behind body), headBack (behind head), outfit (on body),
+      // neck, under (face, below eyes), over (face, above mouth), top (headwear), helmet (over everything).
+      const bc = `clip-path="url(#${uid}b)"`, hc = `clip-path="url(#${uid}h)"`;
+      const mirror = (svg) => svg + `<g transform="matrix(-1 0 0 1 140 0)">${svg}</g>`;
+      const inkLine = (d, c, w) => `<path d="${d}" fill="none" stroke="#111" stroke-width="${w + 4}" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="${d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      const shortCape = (c, lining) => `<g class="cape" style="transform-origin:70px 96px">
+          <path d="M50 96 C40 106 31 118 27 132 Q70 140 113 132 C109 118 100 106 90 96 Z" fill="${c}" ${O}/>
+          ${lining ? `<path d="M53 99 C45 108 38 119 35 129 Q70 135 105 129 C102 119 95 108 87 99 Z" fill="${lining}"/>` : ''}
+        </g>`;
+      const wings = (fill, extra = '', k = 1) => {
+        const w = `<g transform="translate(${40 - 40 * k} ${116 - 116 * k}) scale(${k})">
+          <ellipse cx="28" cy="124" rx="14" ry="8" transform="rotate(-15 28 124)" fill="${fill}" ${extra} ${O}/>
+          <ellipse cx="20" cy="101" rx="25" ry="14" transform="rotate(34 20 101)" fill="${fill}" ${extra} ${O}/></g>`;
+        return `<g class="flap" style="--dir:1;transform-origin:40px 116px">${w}</g>
+          <g class="flap" style="--dir:-1;transform-origin:100px 116px"><g transform="matrix(-1 0 0 1 140 0)">${w}</g></g>`;
+      };
+      const hood = (c, inner) => `<ellipse cx="70" cy="62" rx="58" ry="54" fill="${c}" ${O}/>
+        <ellipse cx="70" cy="64" rx="51" ry="47" fill="${inner}"/>`;
+      const topHat = (c, band, h = 32, extra = '') => `<path d="M47 38 L49 ${38 - h} Q70 ${34 - h} 91 ${38 - h} L93 38 Z" fill="${c}" ${O}/>
+        <path d="M48 31 Q70 35 92 31 L93 38 Q70 42 47 38 Z" fill="${band}"/>
+        ${extra}
+        <path d="M26 40 Q70 52 114 40 Q70 32 26 40 Z" fill="${c}" ${O}/>`;
+      const crown = (c, gem) => `<path d="M44 40 L42 14 L54 28 L62 8 L70 26 L78 8 L86 28 L98 14 L96 40 Q70 46 44 40 Z" fill="${c}" ${O}/>
+        <circle cx="70" cy="36" r="3.5" fill="${gem}" stroke="#111" stroke-width="1.5"/>
+        <circle cx="54" cy="36" r="2.5" fill="#3bc9ff" stroke="#111" stroke-width="1.5"/><circle cx="86" cy="36" r="2.5" fill="#39ff88" stroke="#111" stroke-width="1.5"/>`;
+      const tiara = (c, gem) => `<path d="M50 36 L54 24 L61 31 L70 16 L79 31 L86 24 L90 36 Q70 41 50 36 Z" fill="${c}" ${O}/>
+        <circle cx="70" cy="28" r="3" fill="${gem}" stroke="#111" stroke-width="1.4"/>`;
+      const headband = (c) => inkLine('M30 44 C40 28 100 28 110 44', c, 3.5);
+      const beard = (c, len = 0) => `<path d="M42 90 C42 ${114 + len} 58 ${132 + len} 70 ${136 + len} C82 ${132 + len} 98 ${114 + len} 98 90 Q92 100 82 99 Q70 103 58 99 Q48 100 42 90 Z" fill="${c}" ${O}/>`;
+      const goatee = (c) => `<path d="M60 97 Q70 104 80 97 Q78 116 70 122 Q62 116 60 97 Z" fill="${c}" ${O}/>`;
+      const mustache = (c) => `<path d="M70 79 C64 73 52 72 44 80 C52 78 60 80 70 84 C80 80 88 78 96 80 C88 72 76 73 70 79 Z" fill="${c}" ${O}/>`;
+      const whiskers = mirror(`<path d="M28 76 L10 72 M28 82 L10 84" stroke="#111" stroke-width="2.2" stroke-linecap="round"/>`);
+      const animalNose = (c) => `<path d="M65 73 L75 73 L70 79 Z" fill="${c}" stroke="#111" stroke-width="1.6" stroke-linejoin="round"/>`;
+      const plaid = (dark) => `<path d="M30 104 H110 M30 118 H110 M30 132 H110 M54 90 V150 M70 90 V150 M86 90 V150" stroke="${dark}" stroke-width="3" opacity=".75" ${bc}/>`;
+      const belt = (c, buckle, y = 128) => `<rect x="30" y="${y}" width="80" height="6" fill="${c}" ${bc}/>
+        <rect x="65" y="${y - 1.5}" width="10" height="9" rx="1" fill="none" stroke="${buckle}" stroke-width="2"/>`;
+      const bowtie = (c, knot = c) => `<path d="M70 102 L60 97 L60 107 Z M70 102 L80 97 L80 107 Z" fill="${c}" ${O}/><circle cx="70" cy="102" r="3" fill="${knot}" ${O}/>`;
+      const shirtV = (c = '#f4f0e8') => `<path d="M61 95 L70 120 L79 95 Z" fill="${c}"/>`;
+      const frill = (cols) => {
+        const F = [[48, 95], [56, 100], [63, 103], [70, 104], [77, 103], [84, 100], [92, 95]];
+        return `<g fill="#111">${F.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="7.5"/>`).join('')}</g>
+          ${F.map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="5.8" fill="${cols[i % cols.length]}"/>`).join('')}`;
+      };
+      const buttons = (xs, c = '#ffd23f') => `<g fill="${c}" stroke="#111" stroke-width="1.4">${xs.flatMap(x => [108, 119, 130].map(y => `<circle cx="${x}" cy="${y}" r="2.4"/>`)).join('')}</g>`;
+      const earPair = (c, inner, d = 'M30 46 L28 10 L58 32 Z', di = 'M35 38 L34 20 L50 32 Z') => mirror(`<path d="${d}" fill="${c}" ${O}/>${inner ? `<path d="${di}" fill="${inner}"/>` : ''}`);
+      const bigTail = (c, w = 8) => `<path d="M86 138 C118 144 128 112 114 98 C108 92 110 82 118 80" fill="none" stroke="#111" stroke-width="${w + 8}" stroke-linecap="round"/>
+        <path d="M86 138 C118 144 128 112 114 98 C108 92 110 82 118 80" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round"/>`;
+      const backPole = (x1, y1, x2, y2, c = '#8a5a2b') => inkLine(`M${x1} ${y1} L${x2} ${y2}`, c, 3.5);
+      const domeHelm = (c, band) => `<path d="M28 48 C28 12 112 12 112 48 Z" fill="${c}" ${O}/>
+        <path d="M27 42 Q70 52 113 42 L113 49 Q70 59 27 49 Z" fill="${band}" ${O}/>`;
+      const snake = (x, y, d) => inkLine(`M${x} ${y} q${-7 * d} -8 0 -14 q${7 * d} -7 0 -13`, '#5fae3c', 4.5)
+        + `<circle cx="${x}" cy="${y - 28}" r="4.6" fill="#5fae3c" ${O}/><circle cx="${x + 1.5 * d}" cy="${y - 29}" r="1.2" fill="#ffd23f"/>`;
+      const leaves = (c) => mirror([[30, 50, -70], [34, 40, -55], [41, 32, -40], [50, 27, -25], [60, 24, -10]].map(([x, y, a]) =>
+        `<ellipse cx="${x}" cy="${y}" rx="7" ry="3.5" transform="rotate(${a} ${x} ${y})" fill="${c}" stroke="#111" stroke-width="1.6"/>`).join(''));
+      const flowers = (cols) => [[34, 44], [44, 34], [56, 28], [70, 26], [84, 28], [96, 34], [106, 44]].map(([x, y], i) =>
+        `<circle cx="${x}" cy="${y}" r="5.5" fill="${cols[i % cols.length]}" stroke="#111" stroke-width="1.8"/><circle cx="${x}" cy="${y}" r="1.8" fill="#ffd23f"/>`).join('');
+      const spikes = (c) => [-155, -128, -104, -76, -52, -25].map(a => {
+        const r = a * Math.PI / 180, cs = Math.cos(r), sn = Math.sin(r), px = -sn, py = cs;
+        const bx = 70 + 56 * cs, by = 62 + 52 * sn, tx = 70 + 72 * cs, ty = 62 + 68 * sn;
+        return `<path d="M${(bx - 8 * px).toFixed(1)} ${(by - 8 * py).toFixed(1)} L${tx.toFixed(1)} ${ty.toFixed(1)} L${(bx + 8 * px).toFixed(1)} ${(by + 8 * py).toFixed(1)} Z" fill="${c}" ${O}/>`;
+      }).join('');
+
+      const COSTUMES = {
+        vampire: () => ({
+          body: '#1c1824', mouth: 'fangs',
+          back: shortCape('#1a1a22', '#b3122e') + mirror(`<path d="M52 99 L14 74 L24 102 Z" fill="#1a1a22" ${O}/><path d="M47 98 L21 81 L27 99 Z" fill="#b3122e"/>`),
+          outfit: shirtV(), neck: bowtie('#b3122e', '#7a0c1e'),
+        }),
+        witch: () => ({
+          body: '#3a1d5c',
+          back: backPole(118, 92, 28, 146) + `<path d="M36 140 L12 148 L18 158 L42 148 Z" fill="#d9a441" ${O}/>
+            <path d="M18 151 L36 144 M20 155 L39 147" stroke="#a87a26" stroke-width="1.5"/>`,
+          outfit: belt('#111', '#ffd23f', 122),
+          top: `<path d="M44 40 C52 22 62 8 86 -8 C80 6 86 22 96 40 Z" fill="#2a1540" ${O}/>
+            <path d="M46 35 Q70 41 94 35 L95.5 40 Q70 46 44.5 40 Z" fill="#7bd14a" ${O}/>
+            <rect x="65" y="34" width="10" height="8" fill="none" stroke="#ffd23f" stroke-width="2.2"/>
+            <path d="M18 42 Q70 56 122 42 Q70 30 18 42 Z" fill="#2a1540" ${O}/>`,
+        }),
+        mummy: () => ({
+          body: '#e9e0c9', glove: '#e9e0c9',
+          outfit: `<path d="M30 104 L110 114 M30 118 L110 108 M30 126 L110 136 M30 140 L110 130 M30 146 L110 150" stroke="#b5a785" stroke-width="2" fill="none" ${bc}/>`,
+          over: `<g ${hc} fill="#e9e0c9" stroke="#b5a785" stroke-width="2">
+            <path d="M14 38 Q70 28 126 42 L126 50 Q70 37 14 46 Z"/>
+            <path d="M96 24 L130 64 L124 70 L90 30 Z"/>
+            <path d="M12 82 Q30 86 52 102 L44 106 Q26 92 12 90 Z"/></g>`,
+        }),
+        monster: () => ({
+          body: '#3f4a3a', glove: '#8fbf7a', stem: 'stub',
+          outfit: `<path d="M70 96 V146" stroke="#222" stroke-width="2"/><path d="M58 96 L66 112 L70 100 L74 112 L82 96" fill="#2c3428" ${O}/>`,
+          neck: mirror(`<rect x="30" y="95" width="28" height="7" rx="2" fill="#9aa0a6" ${O}/><rect x="25" y="92" width="7" height="13" rx="1.5" fill="#c3c8cc" ${O}/>`),
+          over: `<path d="M94 76 L110 88" stroke="#3a2a1a" stroke-width="2.4" stroke-linecap="round"/>
+            <path d="M97 74 l-3 5 M102 78 l-3 5 M107 82 l-3 5" stroke="#3a2a1a" stroke-width="2" stroke-linecap="round"/>`,
+          top: `<path d="M28 46 C28 26 46 20 70 20 C94 20 112 26 112 46 L105 41 L98 48 L91 41 L84 48 L77 41 L70 48 L63 41 L56 48 L49 41 L42 48 L35 41 Z" fill="#1a1a1a" ${O}/>`,
+        }),
+        devil: () => ({
+          body: '#c4142b',
+          back: `<path d="M84 138 C110 148 124 132 116 114" fill="none" stroke="#111" stroke-width="10" stroke-linecap="round"/>
+            <path d="M84 138 C110 148 124 132 116 114" fill="none" stroke="#c4142b" stroke-width="4" stroke-linecap="round"/>
+            <path d="M116 102 L109 117 L123 116 Z" fill="#c4142b" ${O}/>`,
+          top: mirror(`<path d="M42 42 C30 32 28 16 34 6 C38 18 46 28 56 35 Z" fill="#c4142b" ${O}/>`),
+        }),
+        angel: () => ({
+          body: '#f4f1ff', glove: '#fff', stem: 'stub',
+          back: wings('#fff'),
+          outfit: `<path d="M44 124 Q70 131 96 124" stroke="#ffd84a" stroke-width="3" fill="none" ${bc}/>`,
+          top: `<ellipse cx="70" cy="2" rx="22" ry="6" fill="none" stroke="#111" stroke-width="8"/>
+            <ellipse class="halo" cx="70" cy="2" rx="22" ry="6" fill="none" stroke="#ffd84a" stroke-width="4"/>`,
+        }),
+        pirate: () => ({
+          body: '#f4f0e8', eyesNo: ['shades', 'hearts'],
+          outfit: `<g ${bc}>${[102, 112, 122, 132, 142].map(y => `<path d="M30 ${y} H110" stroke="#c4142b" stroke-width="5"/>`).join('')}
+            <path d="M30 127 Q70 135 110 127" stroke="#111" stroke-width="7" fill="none"/></g>`,
+          over: `<path d="M42 57 L104 36 M41 66 L22 72" stroke="#111" stroke-width="3" stroke-linecap="round"/>
+            <ellipse cx="52" cy="62" rx="12" ry="11" fill="#111"/>`,
+          top: `<path d="M20 42 C34 22 54 30 70 16 C86 30 106 22 120 42 C100 50 40 50 20 42 Z" fill="#1a1a1a" ${O}/>
+            <circle cx="70" cy="30" r="5.5" fill="#fff"/><circle cx="68" cy="29.5" r="1.3" fill="#111"/><circle cx="72" cy="29.5" r="1.3" fill="#111"/>
+            <path d="M63 35 L77 41 M77 35 L63 41" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>`,
+        }),
+        wizard: () => ({
+          body: '#2b3a8f', stem: 'stub',
+          outfit: `<g fill="#ffd23f">${[[52, 112], [88, 120], [56, 134], [86, 140]].map(([x, y]) => `<path d="${star(x, y, 3.5)}"/>`).join('')}</g>`,
+          over: beard('#f4f4f4', 6) + `<path d="M60 106 Q64 120 70 130 M80 106 Q76 120 70 130" stroke="#cfcfcf" stroke-width="1.8" fill="none"/>`,
+          top: `<path d="M40 42 C54 24 62 6 72 -14 C78 6 86 24 100 42 Z" fill="#2b3a8f" ${O}/>
+            <path d="M26 44 Q70 56 114 44 Q70 32 26 44 Z" fill="#2b3a8f" ${O}/>
+            <path d="${star(64, 22, 5)} ${star(80, 30, 3.5)} ${star(72, 6, 3)}" fill="#ffd23f"/>`,
+        }),
+        cat: () => ({
+          body: '#1c1824', nose: false,
+          back: bigTail('#1c1824'),
+          over: whiskers + animalNose('#ff8fb8'),
+          top: headband('#1c1824') + earPair('#1c1824', '#ff8fb8'),
+        }),
+        bee: () => ({
+          body: '#ffc61a', glove: '#241b2f',
+          back: wings('#dff3ff', 'fill-opacity=".8"'),
+          outfit: `<g ${bc}>${[110, 124, 138].map(y => `<path d="M20 ${y - 4} Q70 ${y + 6} 120 ${y - 4}" fill="none" stroke="#241b2f" stroke-width="7"/>`).join('')}</g>`,
+          top: headband('#241b2f') + mirror(inkLine('M48 34 C44 22 38 14 32 8', '#241b2f', 3) + `<circle cx="31" cy="6" r="5.5" fill="#241b2f" ${O}/>`),
+        }),
+        hero: () => ({
+          body: '#2f5bd3', glove: '#c4142b', eyesNo: ['shades', 'hearts'],
+          back: shortCape('#c4142b'),
+          outfit: `<circle cx="70" cy="114" r="9" fill="#ffd23f" ${O}/><path d="M72 106 L64 116 L70 116 L67 123 L76 112 L70 112 Z" fill="#c4142b"/>
+            <rect x="30" y="131" width="80" height="5" fill="#ffd23f" ${bc}/>`,
+          under: `<path d="M32 58 C38 48 60 50 70 56 C80 50 102 48 108 58 C110 68 100 76 88 74 C80 72 74 68 70 66 C66 68 60 72 52 74 C40 76 30 68 32 58 Z" fill="#c4142b" ${O}/>`,
+        }),
+        astronaut: () => ({
+          body: '#eef1f4', stem: 'stub', eyesNo: ['shades'],
+          outfit: `<rect x="60" y="108" width="20" height="14" rx="2" fill="#9aa0a6" ${O}/>
+            <circle cx="65" cy="115" r="2.2" fill="#ff3b3b"/><circle cx="71" cy="115" r="2.2" fill="#39ff88"/><circle cx="77" cy="115" r="2.2" fill="#3bc9ff"/>
+            <path d="M30 128 H110" stroke="#c4142b" stroke-width="3" ${bc}/>`,
+          neck: `<ellipse cx="70" cy="100" rx="24" ry="6" fill="#c9ced3" ${O}/>`,
+          helmet: `<ellipse cx="70" cy="58" rx="57" ry="50" fill="#bfe3ff" fill-opacity=".18" stroke="#111" stroke-width="3.5"/>
+            <ellipse cx="70" cy="58" rx="53" ry="46" fill="none" stroke="#fff" stroke-width="2" opacity=".5"/>
+            <path d="M28 44 Q34 22 56 14" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".75"/>`,
+        }),
+        cowboy: () => ({
+          body: '#4a7bd0',
+          outfit: `<path d="M30 96 H60 L58 150 H30 Z M110 96 H80 L82 150 H110 Z" fill="#7a4a22" ${bc}/>
+            <path d="${star(84, 120, 6)}" fill="#ffd23f" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/>`,
+          neck: `<path d="M48 95 Q70 103 92 95 L73 116 Q70 119 67 116 Z" fill="#c4142b" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+            <g fill="#fff" opacity=".7"><circle cx="62" cy="101" r="1.6"/><circle cx="78" cy="101" r="1.6"/><circle cx="70" cy="108" r="1.6"/></g>`,
+          top: `<path d="M44 36 C42 12 58 12 70 18 C82 12 98 12 96 36 Z" fill="#8a5a2b" ${O}/>
+            <path d="M45 30 Q70 36 95 30 L96 36 Q70 42 44 36 Z" fill="#3a2414"/>
+            <path d="M12 30 Q20 46 70 46 Q120 46 128 30 Q110 40 70 38 Q30 40 12 30 Z" fill="#8a5a2b" ${O}/>`,
+        }),
+        clown: () => ({
+          body: '#ffd23f', nose: false,
+          outfit: `<g ${bc}>${[[56, 108], [82, 116], [62, 132], [86, 136], [50, 124]].map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="4.5" fill="${i % 2 ? '#ff3b8b' : '#3bc9ff'}"/>`).join('')}</g>`,
+          neck: frill(['#ff3b8b', '#fff', '#3bc9ff']),
+          over: `<circle cx="70" cy="75" r="7" fill="#ff2b2b" ${O}/><circle cx="68" cy="73" r="2" fill="#fff" opacity=".8"/>`,
+          top: mirror(`<circle cx="26" cy="34" r="10" fill="#ff3b8b" ${O}/><circle cx="16" cy="50" r="10" fill="#3bc9ff" ${O}/><circle cx="20" cy="66" r="9" fill="#39ff88" ${O}/>`),
+        }),
+        scarecrow: () => ({
+          body: '#b3402a', stem: 'stub',
+          outfit: plaid('#5a1e14') + `<rect x="50" y="122" width="13" height="12" fill="#3a6ea5" transform="rotate(-8 56 128)" ${O}/>`,
+          neck: inkLine('M56 96 l-6 10 M62 98 l-3 11 M70 99 v11 M78 98 l3 11 M84 96 l6 10', '#f2c94c', 2.5),
+          top: `<path d="M46 36 C46 18 94 18 94 36 Z" fill="#e2b54a" ${O}/><path d="M47 30 Q70 35 93 30 L94 36 Q70 41 46 36 Z" fill="#b3402a"/>
+            <path d="M14 40 Q70 54 126 40 Q70 30 14 40 Z" fill="#e2b54a" ${O}/>
+            <path d="M18 42 l-6 6 M24 44 l-3 8 M116 44 l3 8 M122 42 l6 6" stroke="#c99a2e" stroke-width="2.2" stroke-linecap="round"/>`,
+        }),
+        sherlock: () => ({
+          body: '#7a5a3a', eyesNo: ['shades', 'hearts'],
+          back: shortCape('#6b4a2e'),
+          outfit: buttons([64, 76], '#3a2414'),
+          over: inkLine('M88 90 Q96 96 104 94', '#5a3a1e', 3) + `<path d="M101 86 h9 v8 q-4.5 4 -9 0 Z" fill="#5a3a1e" ${O}/>`,
+          top: `<path d="M28 46 C28 14 112 14 112 46 Z" fill="#9a7a52" ${O}/>
+            <path d="M44 22 V44 M58 17 V46 M70 16 V47 M82 17 V46 M96 22 V44 M30 34 H110" stroke="#6b5232" stroke-width="2" opacity=".8"/>
+            <path d="M46 46 Q70 56 94 46 Q70 50 46 46 Z" fill="#9a7a52" ${O}/>
+            <path d="M64 16 q6 -8 12 0" fill="none" stroke="#111" stroke-width="2.5"/>`,
+        }),
+        robinhood: () => ({
+          body: '#3f7d3a',
+          back: `<g transform="rotate(25 104 100)"><rect x="96" y="70" width="16" height="44" rx="3" fill="#7a4a22" ${O}/>
+            ${inkLine('M100 70 V54 M106 70 V50 M110 70 V56', '#d9c9a8', 2)}</g>`,
+          outfit: belt('#5a3a1e', '#ffd23f', 124) + `<path d="M50 96 L70 112 L90 96" fill="none" stroke="#2c5a28" stroke-width="3"/>`,
+          top: `<path d="M26 46 C38 18 82 8 120 34 C100 44 60 48 26 46 Z" fill="#3f7d3a" ${O}/>
+            <path d="M94 32 C104 12 122 4 132 2 C126 14 112 28 100 38 Z" fill="#c4142b" ${O}/>`,
+        }),
+        redhood: () => ({
+          body: '#f4f0e8', glove: '#fff',
+          headBack: hood('#c4142b', '#7a0c1e'),
+          back: shortCape('#c4142b'),
+          outfit: `<path d="M60 104 L80 104 L78 132 L62 132 Z" fill="#2a2a3a"/><path d="M62 108 L78 112 M62 116 L78 112 M62 116 L78 120 M62 124 L78 120" stroke="#f4f0e8" stroke-width="1.4"/>`,
+          neck: `<circle cx="70" cy="100" r="4.5" fill="#c4142b" ${O}/>`,
+        }),
+        santa: () => ({
+          body: '#d0142b', stem: 'stub',
+          outfit: belt('#111', '#ffd23f', 124) + `<path d="M70 96 V146" stroke="#fff" stroke-width="6" ${bc}/>`,
+          over: beard('#fff', 4) + mustache('#fff'),
+          top: `<path d="M30 42 Q46 -4 112 18 Q100 26 98 42 Z" fill="#d0142b" ${O}/>
+            ${inkLine('M28 41 Q70 52 112 41', '#fff', 9)}<circle cx="114" cy="20" r="7.5" fill="#fff" ${O}/>`,
+        }),
+        pharaoh: () => ({
+          body: '#f4efe0', stem: 'stub',
+          headBack: `<path d="M24 40 Q70 8 116 40 L124 106 L102 106 L96 70 L44 70 L38 106 L16 106 Z" fill="url(#${uid}nm)" ${O}/>`,
+          neck: `<path d="M42 95 Q70 128 98 95 Q70 110 42 95 Z" fill="#ffc83a" ${O}/>
+            <path d="M48 100 Q70 118 92 100" fill="none" stroke="#2b5fd3" stroke-width="3"/>`,
+          top: `<path d="M28 46 Q70 30 112 46 L112 53 Q70 37 28 53 Z" fill="#ffc83a" ${O}/>
+            <path d="M70 28 C64 28 64 38 70 40 C76 38 76 28 70 28 Z" fill="#ffc83a" ${O}/>`,
+          defs: `<pattern id="${uid}nm" patternUnits="userSpaceOnUse" width="10" height="10"><rect width="10" height="10" fill="#ffc83a"/><rect y="5" width="10" height="5" fill="#2b5fd3"/></pattern>`,
+        }),
+        medusa: () => ({
+          body: '#f4efe0', stem: 'stub',
+          outfit: `<path d="M44 100 L96 140" stroke="#ffc83a" stroke-width="6" ${bc}/>`,
+          top: [[32, 46, -1], [44, 36, -1], [58, 30, -1], [82, 30, 1], [96, 36, 1], [108, 46, 1]].map(([x, y, d]) => snake(x, y, d)).join(''),
+        }),
+        knight: () => ({
+          body: '#9aa3ad', glove: '#c3c8cc',
+          back: `<path d="M4 98 L36 98 L36 122 Q20 142 4 122 Z" fill="#2b5fd3" ${O}/><path d="M20 102 V132 M8 112 H32" stroke="#ffd23f" stroke-width="4"/>`,
+          outfit: `<path d="M44 112 Q70 120 96 112 M44 126 Q70 134 96 126 M70 96 V146" stroke="#6b737c" stroke-width="2" fill="none" ${bc}/>`,
+          top: domeHelm('#b8c0c8', '#6b737c') + `<path d="M70 16 C64 0 76 -12 92 -10 C82 -4 78 6 76 16 Z" fill="#c4142b" ${O}/>`,
+        }),
+        king: () => ({
+          body: '#9b1030', stem: 'stub',
+          back: shortCape('#9b1030', '#f4f0e8'),
+          neck: `<path d="M44 96 Q70 112 96 96 L94 104 Q70 120 46 104 Z" fill="#f4f0e8" ${O}/>
+            <g fill="#111">${[52, 62, 70, 78, 88].map((x, i) => `<rect x="${x}" y="${100 + (i % 2) * 3}" width="2" height="4"/>`).join('')}</g>`,
+          over: beard('#8a5a2b'),
+          top: crown('#ffc83a', '#c4142b'),
+        }),
+        princess: () => ({
+          body: '#ff8fc8',
+          neck: `<g fill="#fff" stroke="#111" stroke-width="1.2">${[[52, 98], [58, 102], [64, 104], [70, 105], [76, 104], [82, 102], [88, 98]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.8"/>`).join('')}</g>`,
+          outfit: `<path d="M30 124 Q70 132 110 124 V150 H30 Z" fill="#ffc2e2" ${bc}/>`,
+          top: tiara('#ffc83a', '#ff3b8b'),
+        }),
+        jester: () => ({
+          body: '#c4142b',
+          outfit: `<rect x="70" y="90" width="40" height="60" fill="#2b5fd3" ${bc}/>`,
+          neck: frill(['#ffd23f', '#c4142b', '#2b5fd3']),
+          top: `<path d="M30 44 C24 22 12 12 0 16 C12 22 24 34 50 40 Z" fill="#c4142b" ${O}/>
+            <path d="M110 44 C116 22 128 12 140 16 C128 22 116 34 90 40 Z" fill="#2b5fd3" ${O}/>
+            <path d="M30 46 Q70 30 110 46 L110 52 Q70 36 30 52 Z" fill="#ffd23f" ${O}/>
+            <circle cx="0" cy="16" r="4.5" fill="#ffd23f" ${O}/><circle cx="140" cy="16" r="4.5" fill="#ffd23f" ${O}/>`,
+        }),
+        tinman: () => ({
+          body: '#b8c0c8', glove: '#c3c8cc', stem: 'stub',
+          back: backPole(116, 70, 112, 150, '#8a5a2b') + `<path d="M112 66 C126 62 132 74 128 84 L114 78 Z" fill="#c3c8cc" ${O}/>`,
+          outfit: `<path d="${heart(70, 112, .6)}" fill="#ff3b5c" stroke="#111" stroke-width="1.8"/>
+            <g fill="#6b737c">${[[50, 104], [90, 104], [48, 136], [92, 136]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.8"/>`).join('')}</g>`,
+          top: `<path d="M56 36 L60 14 L80 14 L84 36 Z" fill="#c3c8cc" ${O}/><path d="M66 14 L68 -6 L72 -6 L74 14 Z" fill="#c3c8cc" ${O}/>`,
+        }),
+        unclesam: () => ({
+          body: '#2b3a8f', stem: 'stub',
+          outfit: shirtV(), neck: bowtie('#c4142b'),
+          over: goatee('#fff'),
+          top: topHat('#f4f0e8', '#2b3a8f', 40, `<path d="M56 30 V-2 M70 30 V-4 M84 30 V-2" stroke="#c4142b" stroke-width="5"/>
+            <path d="${star(58, 34, 2.5)} ${star(70, 35, 2.5)} ${star(82, 34, 2.5)}" fill="#fff"/>`),
+        }),
+        lincoln: () => ({
+          body: '#1d1a26', stem: 'stub',
+          outfit: shirtV(), neck: bowtie('#111'),
+          over: `<path d="M24 74 C26 104 48 126 70 126 C92 126 114 104 116 74 C110 92 100 98 94 96 Q70 104 46 96 C40 98 30 92 24 74 Z" fill="#1d1a26" ${O}/>`,
+          top: topHat('#1d1a26', '#333', 44),
+        }),
+        viking: () => ({
+          body: '#7a5a3a',
+          neck: frill(['#a07a52', '#8a6a42']),
+          outfit: belt('#3a2414', '#c3c8cc', 126),
+          over: beard('#e07a2a', 8) + `<path d="M58 110 l6 6 M76 116 l6 -6 M64 124 l6 6" stroke="#a04a10" stroke-width="2"/>`,
+          top: domeHelm('#9aa3ad', '#6b737c') + mirror(`<path d="M32 36 C18 30 12 16 16 0 C22 14 32 22 44 26 Z" fill="#f4efe0" ${O}/>`),
+        }),
+        pinocchio: () => ({
+          body: '#c4142b', nose: false,
+          outfit: `<path d="M30 126 H110 V150 H30 Z" fill="#3a6ea5" ${bc}/>`,
+          neck: `<path d="M50 95 L90 95 L84 104 L70 100 L56 104 Z" fill="#fff" ${O}/>` + bowtie('#2b5fd3'),
+          over: `<path d="M68 72 L108 66 Q112 69 108 72 L70 80 Z" fill="#e0b07a" ${O}/>`,
+          top: `<path d="M40 40 C40 20 100 20 100 40 Z" fill="#ffd23f" ${O}/><path d="M30 42 Q70 50 110 42 Q70 34 30 42 Z" fill="#ffd23f" ${O}/>
+            <path d="M88 30 C96 14 106 8 112 6 C108 16 98 26 92 34 Z" fill="#c4142b" ${O}/>`,
+        }),
+        alice: () => ({
+          body: '#7ab8ff',
+          outfit: `<path d="M56 100 L84 100 L88 146 L52 146 Z" fill="#fff" ${O} ${bc}/>`,
+          neck: `<path d="M54 95 Q62 104 70 99 Q78 104 86 95" fill="#fff" ${O}/>`,
+          top: headband('#111') + `<path d="M98 34 L88 26 L88 42 Z M98 34 L108 26 L108 42 Z" fill="#111" ${O}/>`,
+        }),
+        madhatter: () => ({
+          body: '#3f6b3a',
+          outfit: buttons([62], '#ffd23f'),
+          neck: `<path d="M70 102 L52 92 L52 112 Z M70 102 L88 92 L88 112 Z" fill="#ff8a1f" ${O}/><circle cx="70" cy="102" r="4" fill="#c4142b" ${O}/>`,
+          top: topHat('#3f6b3a', '#c4142b', 40, `<rect x="76" y="20" width="14" height="10" fill="#fff" stroke="#111" stroke-width="1.5" transform="rotate(10 83 25)"/>
+            <text x="77" y="28" font-size="6.5" font-family="sans-serif" font-weight="700" transform="rotate(10 83 25)">10/6</text>`),
+        }),
+        reaper: () => ({
+          body: '#16131c', glove: '#e9e4d8',
+          headBack: hood('#16131c', '#000'),
+          back: backPole(120, 40, 106, 152) + `<path d="M120 40 C102 20 68 20 52 34 C74 30 96 34 118 50 Z" fill="#c3c8cc" ${O}/>`,
+          outfit: `<path d="M70 96 V146" stroke="#000" stroke-width="2"/>`,
+        }),
+        liberty: () => ({
+          body: '#6fb3a0', glove: '#6fb3a0',
+          back: backPole(110, 96, 118, 58, '#5a9a88') + `<path d="M110 58 L126 58 L122 66 L114 66 Z" fill="#6fb3a0" ${O}/>
+            <path d="M118 56 C110 46 116 36 118 30 C122 38 128 44 120 56 Z" fill="#ffb02e" ${O}/>`,
+          outfit: `<path d="M48 100 L96 140 M60 98 Q64 120 58 146 M82 104 Q78 124 84 146" stroke="#4f8f7e" stroke-width="2.5" fill="none" ${bc}/>`,
+          top: [-150, -122, -96, -84, -58, -30].map(a => {
+            const r = a * Math.PI / 180, x = 70 + 26 * Math.cos(r), y = 44 + 18 * Math.sin(r);
+            const tx = 70 + 52 * Math.cos(r), ty = 44 + 44 * Math.sin(r), px = -Math.sin(r) * 5, py = Math.cos(r) * 5;
+            return `<path d="M${(x - px).toFixed(1)} ${(y - py).toFixed(1)} L${tx.toFixed(1)} ${ty.toFixed(1)} L${(x + px).toFixed(1)} ${(y + py).toFixed(1)} Z" fill="#6fb3a0" ${O}/>`;
+          }).join('') + `<path d="M40 44 Q70 26 100 44 L100 51 Q70 35 40 51 Z" fill="#6fb3a0" ${O}/>`,
+        }),
+        zombie: () => ({
+          body: '#6b7d5a', glove: '#8fbf7a',
+          outfit: `<path d="M30 138 L44 132 L50 142 L58 134 L66 144 L74 134 L82 142 L90 134 L110 140 V150 H30 Z" fill="#8fbf7a" ${bc}/>
+            <path d="M52 108 L58 116 L54 122 Z M84 112 L90 120 L82 122 Z" fill="#3f4a3a"/>`,
+          over: `<path d="M34 50 L50 46 M38 46 l2 6 M44 45 l2 6" stroke="#3a2a1a" stroke-width="2.2" stroke-linecap="round"/>
+            <rect x="92" y="78" width="14" height="6" rx="2" fill="#f4e0c0" stroke="#111" stroke-width="1.5" transform="rotate(-20 99 81)"/>`,
+        }),
+        werewolf: () => ({
+          body: '#b3402a', glove: '#6b4a2e', nose: false,
+          outfit: plaid('#5a1e14') + `<path d="M30 140 L40 134 L46 142 L54 135 L60 143 L68 136 L110 140 V150 H30 Z" fill="#6b4a2e" ${bc}/>`,
+          neck: `<path d="M50 94 L56 104 L60 96 L66 106 L70 97 L74 106 L80 96 L84 104 L90 94 Z" fill="#6b4a2e" ${O}/>`,
+          over: animalNose('#2a1a12') + mirror(`<path d="M26 60 L14 64 L24 70 L12 76 L26 80" fill="#6b4a2e" stroke="#111" stroke-width="2.5" stroke-linejoin="round"/>`),
+          top: earPair('#6b4a2e', '#c99a6b'),
+        }),
+        fairy: () => ({
+          body: '#c39bff', stem: 'stub',
+          back: wings('#ffd1f0', 'fill-opacity=".85"'),
+          outfit: `<g fill="#fff">${[[52, 112], [86, 124], [60, 138]].map(([x, y]) => `<path d="${star(x, y, 3)}"/>`).join('')}</g>`,
+          top: flowers(['#ff8fc8', '#fff', '#ffd23f']),
+        }),
+        unicorn: () => ({
+          body: '#fbf6ff', glove: '#fff', stem: 'stub',
+          back: bigTail('#ff8fc8', 9),
+          top: earPair('#fbf6ff', '#ff8fc8', 'M36 44 L38 20 L54 34 Z', 'M40 38 L41 26 L50 34 Z')
+            + `<path d="M62 32 L70 -8 L78 32 Z" fill="#ffd23f" ${O}/><path d="M64 24 L76 20 M66 14 L74 11 M67 5 L73 3" stroke="#c99a2e" stroke-width="2"/>`
+            + [[26, 50, '#ff3b8b'], [22, 64, '#ffd23f'], [24, 78, '#39ff88'], [30, 90, '#3bc9ff']].map(([x, y, c]) => `<circle cx="${x}" cy="${y}" r="8" fill="${c}" ${O}/>`).join(''),
+        }),
+        dino: () => ({
+          body: '#4caf50', stem: 'stub',
+          headBack: spikes('#ff8a1f') + hood('#4caf50', '#2e7d32'),
+          back: bigTail('#4caf50', 12),
+          outfit: `<ellipse cx="70" cy="128" rx="16" ry="18" fill="#c8e6a0" ${bc}/>`,
+        }),
+        robot: () => ({
+          body: '#9aa3ad', glove: '#6b737c', stem: 'stub',
+          outfit: `<rect x="56" y="106" width="28" height="22" rx="3" fill="#3a4048" ${O}/>
+            <circle cx="63" cy="113" r="2.6" fill="#ff3b3b"/><circle cx="70" cy="113" r="2.6" fill="#ffd23f"/><circle cx="77" cy="113" r="2.6" fill="#39ff88"/>
+            <path d="M60 122 h20" stroke="#3bc9ff" stroke-width="2.5"/>`,
+          top: mirror(`<rect x="14" y="54" width="12" height="22" rx="2" fill="#9aa3ad" ${O}/>`)
+            + inkLine('M70 34 V8', '#9aa3ad', 3) + `<circle class="stick" cx="70" cy="6" r="6" stroke="#111" stroke-width="2"/>`,
+        }),
+        alien: () => ({
+          body: '#c9ced3', glove: '#7bd14a',
+          outfit: belt('#2b3a8f', '#7bd14a', 122) + `<path d="M70 96 V122" stroke="#9aa3ad" stroke-width="2"/>`,
+          top: mirror(inkLine('M52 34 C46 20 40 12 30 8', '#7bd14a', 3) + `<circle class="stick" cx="29" cy="6" r="6" stroke="#111" stroke-width="2"/>`),
+        }),
+        chef: () => ({
+          body: '#fbfbfb', glove: '#fff', stem: 'stub',
+          outfit: buttons([62, 78], '#111'),
+          neck: `<path d="M48 95 Q70 103 92 95 L80 106 Q70 110 60 106 Z" fill="#c4142b" ${O}/>`,
+          over: mustache('#3a2414'),
+          top: `<path d="M44 28 C30 20 34 -6 52 0 C56 -14 84 -14 88 0 C106 -6 110 20 96 28 Z" fill="#fff" ${O}/>
+            <rect x="44" y="24" width="52" height="16" rx="3" fill="#fff" ${O}/>`,
+        }),
+        firefighter: () => ({
+          body: '#c9a86b', glove: '#3a2a1a',
+          outfit: `<path d="M30 116 H110 M30 136 H110" stroke="#ffe600" stroke-width="5" ${bc}/><path d="M30 116 H110 M30 136 H110" stroke="#c3c8cc" stroke-width="1.6" ${bc}/>`,
+          top: `<path d="M26 48 C26 12 114 12 114 48 L126 52 Q70 62 14 52 Z" fill="#d0142b" ${O}/>
+            <path d="M60 18 L80 18 L84 40 L56 40 Z" fill="#ffd23f" ${O}/><text x="64" y="34" font-size="9" font-family="sans-serif" font-weight="700">7</text>`,
+        }),
+        sailor: () => ({
+          body: '#fbfbfb', glove: '#fff', stem: 'stub',
+          neck: `<path d="M46 95 L94 95 L98 114 L70 104 L42 114 Z" fill="#2b3a8f" ${O}/><path d="M50 99 L90 99 L92 109" fill="none" stroke="#fff" stroke-width="1.6"/>
+            <path d="M64 104 L76 104 L74 118 L70 114 L66 118 Z" fill="#c4142b" ${O}/>`,
+          top: `<path d="M42 40 Q70 46 98 40 L94 20 Q70 14 46 20 Z" fill="#fbfbfb" ${O}/>${inkLine('M40 40 Q70 48 100 40', '#fbfbfb', 6)}`,
+        }),
+        graduate: () => ({
+          body: '#1d1a26', stem: 'stub',
+          outfit: shirtV(),
+          top: `<path d="M44 40 Q70 46 96 40 L96 28 Q70 34 44 28 Z" fill="#1d1a26" ${O}/>
+            <path d="M14 26 L70 10 L126 26 L70 42 Z" fill="#1d1a26" ${O}/>
+            ${inkLine('M70 26 L108 32 L110 50', '#ffd23f', 2.5)}<rect x="106" y="48" width="8" height="10" rx="2" fill="#ffd23f" ${O}/>`,
+        }),
+        ballerina: () => ({
+          body: '#ffb6d9',
+          outfit: `<ellipse cx="70" cy="128" rx="38" ry="9" fill="#ffd6ec" ${O}/><ellipse cx="70" cy="124" rx="32" ry="7" fill="#ffc2e2" ${O}/>`,
+          top: tiara('#e0e6ee', '#ff8fc8'),
+        }),
+        bunny: () => ({
+          body: '#fbf6ff', glove: '#fff', nose: false,
+          over: whiskers + animalNose('#ff8fb8'),
+          top: headband('#fbf6ff') + mirror(`<path d="M48 36 C38 0 44 -16 52 -12 C62 -6 62 20 60 34 Z" fill="#fbf6ff" ${O}/><path d="M51 30 C46 6 48 -6 52 -6 C57 -2 57 18 56 30 Z" fill="#ffc2dc"/>`),
+        }),
+        leprechaun: () => ({
+          body: '#2e8b3e',
+          outfit: belt('#111', '#ffd23f', 126) + buttons([70], '#ffd23f'),
+          over: beard('#e07a2a', 2),
+          top: topHat('#2e8b3e', '#111', 28, `<rect x="64" y="28" width="12" height="10" fill="none" stroke="#ffd23f" stroke-width="2.4"/>
+            <g fill="#5fd35f" stroke="#111" stroke-width="1.2"><circle cx="86" cy="22" r="3.2"/><circle cx="90.5" cy="22" r="3.2"/><circle cx="88.3" cy="18" r="3.2"/></g>`),
+        }),
+        mime: () => ({
+          body: '#fbfbfb',
+          outfit: `<g ${bc}>${[100, 110, 120, 130, 140].map(y => `<path d="M30 ${y} H110" stroke="#111" stroke-width="5"/>`).join('')}</g>
+            <path d="M56 96 V146 M84 96 V146" stroke="#1d1a26" stroke-width="3.5"/>`,
+          neck: `<path d="M48 95 Q70 103 92 95 L92 101 Q70 109 48 101 Z" fill="#c4142b" ${O}/><path d="M86 100 L96 120 L90 122 Z" fill="#c4142b" ${O}/>`,
+          over: mustache('#111'),
+          top: `<ellipse cx="66" cy="34" rx="30" ry="10" transform="rotate(-10 66 34)" fill="#1d1a26" ${O}/><path d="M66 24 v-6" stroke="#111" stroke-width="3" stroke-linecap="round"/>`,
+        }),
+        lumberjack: () => ({
+          body: '#b3242a',
+          back: backPole(116, 70, 112, 150) + `<path d="M112 66 C126 62 132 74 128 84 L114 78 Z" fill="#c3c8cc" ${O}/>`,
+          outfit: plaid('#1d1a26'),
+          over: beard('#6b3e1e', 4),
+          top: `<path d="M29 48 C29 12 111 12 111 48 Z" fill="#b3242a" ${O}/>
+            <rect x="25" y="40" width="90" height="13" rx="6.5" fill="#1d1a26" ${O}/>`,
+        }),
+        hippie: () => ({
+          body: '#ff8fc8',
+          outfit: `<g ${bc}><circle cx="70" cy="122" r="30" fill="#ffd23f"/><circle cx="70" cy="122" r="22" fill="#39ff88"/><circle cx="70" cy="122" r="14" fill="#3bc9ff"/><circle cx="70" cy="122" r="6" fill="#b36bff"/></g>`,
+          neck: `<path d="M52 96 Q70 116 88 96" fill="none" stroke="#8a5a2b" stroke-width="2"/><circle cx="70" cy="112" r="6" fill="none" stroke="#c3c8cc" stroke-width="2.4"/>
+            <path d="M70 106 V118 M70 112 L66 116 M70 112 L74 116" stroke="#c3c8cc" stroke-width="2"/>`,
+          top: inkLine('M28 50 Q70 36 112 50', '#ff8a1f', 4) + `<circle cx="96" cy="44" r="6" fill="#fff" ${O}/><circle cx="96" cy="44" r="2.4" fill="#ffd23f"/>`,
+        }),
+        cupid: () => ({
+          body: '#fff0f6', glove: '#fff', stem: 'stub',
+          back: wings('#fff', '', .7) + inkLine('M112 66 Q132 96 112 126', '#8a5a2b', 3) + `<path d="M112 66 L112 126" stroke="#111" stroke-width="1"/>`,
+          outfit: `<path d="${heart(70, 116, .65)}" fill="#ff3b5c" stroke="#111" stroke-width="1.8"/>`,
+        }),
+        elf: () => ({
+          body: '#2e8b3e', stem: 'stub',
+          outfit: belt('#111', '#ffd23f', 124),
+          neck: `<path d="M48 95 L54 104 L60 97 L66 106 L70 98 L74 106 L80 97 L86 104 L92 95 Z" fill="#c4142b" ${O}/>`,
+          under: mirror(`<path d="M26 70 L2 54 L28 82 Z" fill="${PK.pk}" stroke="#111" stroke-width="3" stroke-linejoin="round"/>`),
+          top: `<path d="M30 42 Q46 -4 116 14 Q100 26 98 42 Z" fill="#2e8b3e" ${O}/>
+            ${inkLine('M28 41 Q70 52 112 41', '#c4142b', 7)}<circle cx="118" cy="14" r="6" fill="#ffd23f" ${O}/>`,
+        }),
+        ninja: () => ({
+          body: '#1d1a26', glove: '#1d1a26',
+          headBack: hood('#1d1a26', '#000'),
+          outfit: `<rect x="30" y="124" width="80" height="6" fill="#c4142b" ${bc}/>`,
+          top: `<path d="M26 48 Q70 34 114 48 L114 56 Q70 42 26 56 Z" fill="#c4142b" ${O}/>
+            <path d="M112 50 L132 40 L128 52 Z M112 54 L134 60 L124 64 Z" fill="#c4142b" ${O}/>`,
+        }),
+        musketeer: () => ({
+          body: '#2b5fd3',
+          outfit: `<path d="M66 96 h8 v50 h-8 Z M44 112 h52 v8 h-52 Z" fill="#fff" ${bc}/>`,
+          back: backPole(16, 96, 30, 150, '#c3c8cc'),
+          top: `<path d="M42 40 C42 18 98 18 98 40 Z" fill="#1d1a26" ${O}/>
+            <path d="M48 24 C58 2 92 -8 118 6 C100 8 82 16 64 30 Z" fill="#fff" ${O}/>
+            <path d="M10 42 Q70 30 130 42 Q70 52 10 42 Z" fill="#1d1a26" ${O}/>`,
+        }),
+        napoleon: () => ({
+          body: '#2b3a8f',
+          outfit: buttons([62, 78], '#ffd23f') + `<path d="M30 130 H110" stroke="#fff" stroke-width="5" ${bc}/>`,
+          neck: mirror(`<ellipse cx="48" cy="100" rx="10" ry="5" fill="#ffd23f" ${O}/><path d="M40 104 v5 M44 105 v5 M48 105 v5 M52 105 v5" stroke="#ffd23f" stroke-width="2"/>`),
+          top: `<path d="M8 42 C26 6 114 6 132 42 Q70 30 8 42 Z" fill="#1d1a26" ${O}/>
+            <circle cx="44" cy="30" r="6" fill="#2b5fd3" ${O}/><circle cx="44" cy="30" r="3.6" fill="#fff"/><circle cx="44" cy="30" r="1.6" fill="#c4142b"/>`,
+        }),
+        rapunzel: () => ({
+          body: '#9b6bd3',
+          top: inkLine('M40 36 C14 50 12 80 22 104 C30 124 22 140 20 156', '#ffd23f', 12)
+            + `<path d="M18 62 l10 4 M15 76 l10 3 M16 90 l11 2 M21 104 l10 -1 M24 118 l9 -2 M23 132 l9 -2 M21 146 l9 -1" stroke="#c99a2e" stroke-width="2"/>`
+            + `<path d="M28 46 C34 26 106 26 112 46 C100 36 40 36 28 46 Z" fill="#ffd23f" ${O}/>` + flowers(['#ff8fc8', '#fff']),
+        }),
+        pilgrim: () => ({
+          body: '#1d1a26',
+          neck: `<path d="M48 95 L92 95 L98 112 Q70 118 42 112 Z" fill="#fbfbfb" ${O}/>`,
+          outfit: belt('#3a2414', '#ffd23f', 128),
+          top: topHat('#1d1a26', '#1d1a26', 24, `<rect x="63" y="29" width="14" height="10" fill="none" stroke="#ffd23f" stroke-width="2.6"/>`),
+        }),
+        phantom: () => ({
+          body: '#1d1a26',
+          back: shortCape('#1a1a22', '#b3122e'),
+          outfit: shirtV(), neck: bowtie('#111'),
+          under: `<path d="M71 40 C92 36 113 46 113 64 C113 80 98 90 78 84 L72 70 Z" fill="#fbfbfb" ${O}/>`,
+        }),
+        zeus: () => ({
+          body: '#fbfbfb', glove: '#fff', stem: 'stub',
+          back: `<path d="M118 46 L104 74 L114 74 L100 104 L128 66 L118 66 L128 46 Z" fill="#ffe600" ${O}/>`,
+          outfit: `<path d="M44 100 L96 140" stroke="#ffc83a" stroke-width="6" ${bc}/>`,
+          over: beard('#fbfbfb', 6),
+          top: leaves('#5fae3c'),
+        }),
+        sheriff: () => ({
+          body: '#c9a86b',
+          outfit: `<path d="${star(82, 114, 7)}" fill="#ffd23f" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/>` + belt('#5a3a1e', '#c3c8cc', 128),
+          over: mustache('#5a3a1e'),
+          top: `<path d="M44 36 C42 12 58 12 70 18 C82 12 98 12 96 36 Z" fill="#e8dcc0" ${O}/>
+            <path d="M12 30 Q20 46 70 46 Q120 46 128 30 Q110 40 70 38 Q30 40 12 30 Z" fill="#e8dcc0" ${O}/>`,
+        }),
+        ghostbride: () => ({
+          body: '#fbfbfb', glove: '#fff',
+          headBack: `<path d="M30 40 C10 70 6 120 2 152 Q70 160 138 152 C134 120 130 70 110 40 Z" fill="#fff" fill-opacity=".75" ${O}/>`,
+          outfit: `<path d="M30 124 Q70 132 110 124 V150 H30 Z" fill="#f0eaff" ${bc}/>`,
+          top: flowers(['#fff', '#d0c4ff']),
+        }),
+      };
+      const C = R() < .9 ? COSTUMES[pick(R, Object.keys(COSTUMES))]() : {};
+      if (C.body) { f.hat = 'none'; f.neck = 'none'; f.cape = false; f.outfit = 'plain'; }
+      if (C.mouth) f.mouth = C.mouth;
+      if (C.nose === false) f.nose = false;
+      if (C.eyesNo && C.eyesNo.includes(f.eyes)) f.eyes = 'tri';
+      const S = STEMS[C.stem || f.stem];
+      const bodyC = C.body || p.main, gloveC = C.glove || '#f4f0e8';
+
+      // ----- cape -----
+      const cape = f.cape ? `<g class="cape" style="transform-origin:70px 96px">
+          <path d="M50 96 C40 106 31 118 27 132 Q70 140 113 132 C109 118 100 106 90 96 Z" fill="${f.capeC}" ${O}/>
+          <path d="M35 128 Q40 116 50 105 M105 128 Q100 116 90 105" fill="none" stroke="#fff" stroke-width="2" opacity=".15" stroke-linecap="round"/>
+        </g>` : '';
+
+      // ----- one-outline silhouette -----
+      const stem = (isInk) => `<path d="${S.d}" ${solid(isInk, f.stemC)}/>`
+        + (S.vine ? `<path d="${S.vine}" stroke="${isInk ? '#111' : '#4f7a2a'}" stroke-width="${isInk ? 3 + INK * 2 : 3}" stroke-linecap="round" fill="none"/>` : '')
+        + (S.leaf ? `<path d="${S.leaf}" ${solid(isInk, '#5fae3c')}/>` : '');
+      const lobes = (isInk) => LOBES.map(([x, y, rx, ry]) => isInk
+        ? `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" ${solid(true)}/>`
+        : `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${PK.pk}" stroke="${PK.rib}" stroke-width="2.5"/>`).join('');
+      const silhouette = (isInk) => `
+        <path d="${BODY}" ${bodyT} ${solid(isInk, bodyC)}/>
+        <ellipse cx="61" cy="146" rx="8" ry="5.5" ${solid(isInk, bootC)}/>
+        <ellipse cx="79" cy="146" rx="8" ry="5.5" ${solid(isInk, bootC)}/>
+        ${headG(stem(isInk) + lobes(isInk))}`;
+
+      // ----- outfit -----
+      const outfitSvg = {
+        plain: '',
+        stripes: `<g ${bc}>${[110, 122, 134].map(y => `<path d="M20 ${y} Q70 ${y + 6} 120 ${y}" fill="none" stroke="${p.dark}" stroke-width="5"/>`).join('')}</g>`,
+        buttons: `<g fill="#fff" stroke="#111" stroke-width="1.6">${[110, 121, 132].map(y => `<circle cx="70" cy="${y}" r="2.6"/>`).join('')}</g>`,
+        bones: `<g fill="none" stroke="${p.light}" stroke-width="3.5" stroke-linecap="round" ${bc}>
+            <path d="M70 102 v34 M58 110 q12 5 24 0 M57 118 q13 5 26 0 M59 126 q11 5 22 0"/></g>`,
+        zipper: `<path d="M70 100 v40" stroke="${p.dark}" stroke-width="2.5"/>
+            <path d="M70 100 v40" stroke="#fff" stroke-width="1.2" stroke-dasharray="1.5 2.5" opacity=".8"/>
+            <path d="M52 127 q18 7 36 0" fill="none" stroke="${p.dark}" stroke-width="2.5" stroke-linecap="round" ${bc}/>`,
+      }[f.outfit];
+
+      // ----- carved face -----
+      const carve = (d) => `<path class="carve" d="${d}"/>`;
+      const caret = (cx) => carve(`M${cx - 10} 67 Q${cx} 50 ${cx + 10} 67 Q${cx} 59 ${cx - 10} 67 Z`);
+      const tri = (cx) => carve(`M${cx - 11} 70 L${cx} 52 L${cx + 11} 70 Z`);
+      const cuteEye = (cx) => `<ellipse cx="${cx}" cy="62" rx="9" ry="10.5" fill="#1b1430"/>
+        <ellipse cx="${cx}" cy="64" rx="3" ry="7" fill="${p.g1}" opacity=".35"/>
+        <circle cx="${cx + 3.5}" cy="57.5" r="3.8" fill="#fff"/><circle cx="${cx - 3}" cy="66.5" r="1.8" fill="#fff" opacity=".85"/>`;
+      const eyeSvg = {
+        tri: tri(52) + tri(88),
+        angry: carve('M39 54 L64 63 L47 72 Z') + carve('M101 54 L76 63 L93 72 Z'),
+        round: `<circle class="carve" cx="52" cy="62" r="8.5"/><circle class="carve" cx="88" cy="62" r="8.5"/>`,
+        happy: caret(52) + caret(88),
+        star: carve(star(52, 62, 11)) + carve(star(88, 62, 11)),
+        cute: `<g class="blink" style="transform-origin:70px 62px">${cuteEye(52)}${cuteEye(88)}</g>`,
+        wink: tri(52) + caret(88),
+        shades: `<rect x="35" y="52" width="70" height="19" rx="8" fill="#111"/>
+           <rect class="lens" x="39" y="55" width="27" height="13" rx="5"/>
+           <rect class="lens l2" x="74" y="55" width="27" height="13" rx="5"/>
+           <path d="M43 59 h7 M78 59 h7" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".9"/>`,
+        hearts: `<path class="lens" d="${heart(52, 62, 1.15)}" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+           <path class="lens l2" d="${heart(88, 62, 1.15)}" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+           <path d="M46 58 l4 -2 M82 58 l4 -2" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".9"/>`,
+      }[f.eyes];
+      const nose = f.nose ? carve('M65 79 L70 71.5 L75 79 Z') : '';
+
+      // ----- mouth -----
+      const mouthShape = {
+        grin: carve('M42 80 Q70 106 98 80 L90 87 L85 82 L78 89 L70 84 L62 89 L55 82 L50 87 Z'),
+        smile: carve('M47 81 Q70 101 93 81 Q70 92 47 81 Z'),
+        fangs: carve('M46 81 Q70 85 94 81 Q90 95 70 95 Q50 95 46 81 Z')
+          + `<path d="M56 82.5 L60 88.5 L64 83.2 Z M76 83.2 L80 88.5 L84 82.5 Z M66 95 L70 89 L74 95 Z" fill="${PK.pk}" stroke="${PK.rib}" stroke-width="1.5" stroke-linejoin="round"/>`,
+        oh: `<ellipse class="carve" cx="70" cy="87" rx="6" ry="7"/>`,
+      }[f.mouth];
+      const mouth = `<g class="mouth" style="transform-origin:70px 80px">${mouthShape}</g>`;
+
+      // ----- headwear -----
+      const hatSvg = {
+        none: '',
+        headphones: `<path d="M27 72 C20 6 120 6 113 72" fill="none" stroke="#111" stroke-width="8" stroke-linecap="round"/>
+           <path d="M27 72 C20 6 120 6 113 72" fill="none" stroke="${p.g2}" stroke-width="3" stroke-linecap="round"/>
+           <rect x="16" y="60" width="15" height="25" rx="7" fill="${p.g2}" ${O}/>
+           <rect x="109" y="60" width="15" height="25" rx="7" fill="${p.g2}" ${O}/>`,
+        party: `<path d="M70 -9 L56 34 L84 34 Z" fill="${p.g2}" ${O}/>
+           <path d="M62 15 L78 15" stroke="${p.g1}" stroke-width="3.5" stroke-linecap="round"/>
+           <circle cx="70" cy="-10" r="5.5" fill="${p.g1}" ${O}/>`,
+        beanie: `<path d="M29 48 C29 12 111 12 111 48 Z" fill="${p.g2}" ${O}/>
+           <path d="M48 22 v24 M59 18 v28 M70 17 v29 M81 18 v28 M92 22 v24" stroke="${p.g1}" stroke-width="3" opacity=".55"/>
+           <rect x="25" y="40" width="90" height="13" rx="6.5" fill="${p.g1}" ${O}/>
+           <circle cx="70" cy="11" r="7.5" fill="${p.g1}" ${O}/>`,
+        bow: `<g transform="rotate(14 94 36)"><path d="M94 36 L79 26 L79 46 Z M94 36 L109 26 L109 46 Z" fill="${p.g2}" ${O}/>
+           <circle cx="94" cy="36" r="4.5" fill="${p.g1}" ${O}/></g>`,
+      }[f.hat];
+
+      // ----- neckwear -----
+      const neckSvg = {
+        none: '',
+        bowtie: `<path d="M70 102 L57 95 L57 109 Z M70 102 L83 95 L83 109 Z" fill="${p.g2}" ${O}/>
+           <circle cx="70" cy="102" r="4" fill="${p.g1}" ${O}/>`,
+        glow: `<path d="M50 96 Q70 108 90 96" fill="none" stroke="#111" stroke-width="7" stroke-linecap="round"/>
+           <path class="neon" d="M50 96 Q70 108 90 96" fill="none" stroke-width="3.5" stroke-linecap="round"/>`,
+        bandana: `<path d="M48 95 Q70 103 92 95 L73 116 Q70 119 67 116 Z" fill="${p.g2}" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+           <g fill="#fff" opacity=".7"><circle cx="62" cy="101" r="1.6"/><circle cx="78" cy="101" r="1.6"/><circle cx="70" cy="108" r="1.6"/></g>`,
+      }[f.neck];
+
+      // ----- arms, glowsticks, kandi -----
+      const ARM = (L) => L ? 'M52 108 L34 90' : 'M88 108 L106 90';
+      const HAND = (L) => L ? [34, 90] : [106, 90];
+      const armInk = (L) => `<path d="${ARM(L)}" ${ink(11)}/><circle cx="${HAND(L)[0]}" cy="${HAND(L)[1]}" r="7.5" ${solid(true)}/>`;
+      const stick = (L) => `<g transform="rotate(${L ? -28 : 28} ${HAND(L)[0]} ${HAND(L)[1]})"><rect class="stick" x="${HAND(L)[0] - 4}" y="${HAND(L)[1] - 36}" width="8" height="36" rx="4" stroke="#111" stroke-width="2"/>
+          <rect x="${HAND(L)[0] - 1.5}" y="${HAND(L)[1] - 32}" width="3" height="20" rx="1.5" fill="#fff" opacity=".75"/></g>`;
+      const kandi = (L) => {
+        if (!f.kandi) return '';
+        const d = L ? 'M34.8 99.2 L43.2 90.8' : 'M96.8 90.8 L105.2 99.2';
+        return `<path d="${d}" stroke="#111" stroke-width="7" stroke-linecap="round"/>
+          <path d="${d}" stroke="${p.g1}" stroke-width="4" stroke-dasharray="2.6 2.6"/>
+          <path d="${d}" stroke="${p.g2}" stroke-width="4" stroke-dasharray="2.6 2.6" stroke-dashoffset="2.6"/>`;
+      };
+      const armFur = (L) => `${stick(L)}<path d="${ARM(L)}" ${fur(11, bodyC)}/>${kandi(L)}
+          <circle cx="${HAND(L)[0]}" cy="${HAND(L)[1]}" r="7.5" ${solid(false, gloveC)}/>`;
+
+      const headDetails = headG(`
+        <ellipse cx="40" cy="50" rx="6" ry="10" transform="rotate(20 40 50)" fill="#fff" opacity=".22"/>
+        ${C.under || ''}
+        ${eyeSvg}
+        ${nose}
+        ${mouth}
+        ${C.over || ''}
+        ${hatSvg}
+        ${C.top || ''}
+        ${C.helmet || ''}`);
+
+      return `<svg viewBox="-6 -16 152 170" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <mask id="${uid}" maskUnits="userSpaceOnUse" x="-40" y="-40" width="230" height="230">
+            <rect x="-40" y="-40" width="230" height="230" fill="#fff"/>
+            <path d="${BODY}" ${bodyT} fill="#000"/>
+          </mask>
+          <clipPath id="${uid}b"><path d="${BODY}" ${bodyT}/></clipPath>
+          <clipPath id="${uid}h">${LOBES.map(([x, y, rx, ry]) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}"/>`).join('')}</clipPath>
+          ${C.defs || ''}
+        </defs>
+        ${C.back || cape}
+        ${C.headBack ? headG(C.headBack) : ''}
+        ${silhouette(true)}
+        ${silhouette(false)}
+        ${outfitSvg}${C.outfit || ''}
+        ${neckSvg}${C.neck || ''}
+        ${headDetails}
+        <g mask="url(#${uid})">${armG('L', armInk)}${armG('R', armInk)}</g>
+        ${armG('L', armFur)}${armG('R', armFur)}
+      </svg>`;
+    }
+    return pumpkinSVG;
+  })();
+
+  // ---------------- themes ----------------
+  const THEMES = {
+    cats: {
+      draw: drawCat,
+      sfx: ['MEOW!', 'POW!', 'NYA!', 'ZAP!', 'BOOM!', 'WHAM!', 'PURR!', 'BAM!', 'MRRP!', 'KAPOW!'],
+      names: ['NeonWhiskers', 'PixelPaws', 'DJ_Catnip', 'Zoomies4Life', 'vaporpurr', 'TechnoTabby', 'kittykat_9000', 'sunny_sardine'],
+      lines: ['meow meow meow', 'my cat is dancing too lol', 'pspspsps'],
+      testNames: ['TestKitty', 'SettingsCat', 'PreviewPurr', 'DemoMeow'],
+    },
+    dogs: {
+      draw: drawDog,
+      sfx: ['WOOF!', 'POW!', 'ARF!', 'ZAP!', 'BOOM!', 'AWOO!', 'BORK!', 'BAM!', 'YIP!', 'KAPOW!'],
+      names: ['NeonFloof', 'PixelPup', 'DJ_Doggo', 'Zoomies4Life', 'vaporwoof', 'TechnoTerrier', 'howl_9000', 'sunny_snout'],
+      lines: ['AWOOOOOO', 'who\'s a good dancer', 'the pack is HERE lol'],
+      testNames: ['TestPup', 'SettingsDog', 'PreviewWoof', 'DemoHowl'],
+    },
+    bees: {
+      draw: drawBee,
+      sfx: ['BZZZ!', 'POW!', 'BUZZ!', 'ZAP!', 'BOOM!', 'WHAM!', 'STING!', 'BAM!', 'BZZT!', 'KAPOW!'],
+      names: ['NeonNectar', 'PixelPollen', 'DJ_Honeycomb', 'Buzzin4Life', 'vaporbuzz', 'TechnoQueenBee', 'bumblebee_9000', 'sunny_stinger'],
+      lines: ['bzz bzz bzz', 'the hive is THRIVING lol', 'save the bees!!'],
+      testNames: ['TestBee', 'SettingsBee', 'PreviewBuzz', 'DemoDrone'],
+    },
+    pumpkins: {
+      draw: drawPumpkin,
+      floor: 'linear-gradient(90deg,#ff7a1a,#8a3cff,#39ff88,#ffb000,#b02bff,#ff7a1a)',
+      sfx: ['BOO!', 'POW!', 'EEK!', 'ZAP!', 'BOOM!', 'WHAM!', 'SPOOKY!', 'BAM!', 'MWAHA!', 'KAPOW!'],
+      names: ['NeonGourd', 'PixelPatch', 'DJ_Candlewick', 'Spooky4Life', 'vaporghoul', 'TechnoHollow', 'jackolantern_9000', 'sunny_squash'],
+      lines: ['spooky szn!!', 'the patch is POPPING lol', 'trick or treat!!'],
+      testNames: ['TestJack', 'SettingsGourd', 'PreviewPumpkin', 'DemoBoo'],
+    },
+  };
+  const THEME = THEMES[themeId(CFG.theme)];
+  document.title = `Rave ${cap(TN.one)} Chat`;
+  if (THEME.floor) root.style.setProperty('--floor', THEME.floor);
 
   // ---------------- slots / layout ----------------
-  const cats = new Map();          // key -> cat
+  const ravers = new Map();          // key -> raver
   const activeBubbles = new Set(); // bwrap elements
   let slots = [];
 
@@ -688,20 +1923,20 @@
     const span = Math.max(0, x1 - x0);
     const n = Math.max(1, Math.min(CFG.max, Math.floor(span / (CFG.size * 1.15)) + 1));
     const old = slots;
-    slots = Array.from({ length: n }, (_, i) => ({ x: n === 1 ? (x0 + x1) / 2 : x0 + span * i / (n - 1), cat: null }));
-    // re-seat existing cats
+    slots = Array.from({ length: n }, (_, i) => ({ x: n === 1 ? (x0 + x1) / 2 : x0 + span * i / (n - 1), raver: null }));
+    // re-seat existing ravers
     old.forEach(s => {
-      if (!s.cat) return;
-      const free = slots.find(z => !z.cat);
-      if (free) { free.cat = s.cat; s.cat.slot = free; s.cat.el.style.left = free.x + 'px'; }
-      else leave(s.cat);
+      if (!s.raver) return;
+      const free = slots.find(z => !z.raver);
+      if (free) { free.raver = s.raver; s.raver.slot = free; s.raver.el.style.left = free.x + 'px'; }
+      else leave(s.raver);
     });
   }
 
-  // A slot is only free once its previous cat has fully ducked away (busyUntil),
-  // and slots still being vacated count as occupied when spreading cats out.
+  // A slot is only free once its previous raver has fully ducked away (busyUntil),
+  // and slots still being vacated count as occupied when spreading ravers out.
   const EXIT_MS = 950;
-  const slotFree = (s, now) => !s.cat && now >= (s.busyUntil || 0);
+  const slotFree = (s, now) => !s.raver && now >= (s.busyUntil || 0);
   function pickSlot() {
     const now = Date.now();
     const free = slots.filter(s => slotFree(s, now));
@@ -716,11 +1951,11 @@
     return free[free.length - 1];
   }
 
-  // ---------------- cat lifecycle ----------------
-  function spawnCat(key, name, color, platform, slot) {
+  // ---------------- raver lifecycle ----------------
+  function spawnRaver(key, name, color, platform, slot) {
     const p = palette(name, color);
     const el = document.createElement('div');
-    el.className = 'cat';
+    el.className = 'raver';
     el.style.left = slot.x + 'px';
     el.style.setProperty('--c', p.main);
     el.style.setProperty('--cd', p.dark);
@@ -733,31 +1968,31 @@
 
     const dance = p.seed >>> 10; // unsigned shift: a signed one went negative and picked a dance that doesn't exist
     el.innerHTML = `<div class="floorglow"></div>
-      <div class="dancer d${dance % 3} a${(dance >>> 2) % 3}">${catSVG(p)}</div>`;
+      <div class="dancer d${dance % 3} a${(dance >>> 2) % 3}">${THEME.draw(p)}</div>`;
     stage.appendChild(el);
 
-    const cat = { key, name, platform, el, p, slot, last: Date.now(), shownAt: Date.now(), speaking: false, queue: [], leaving: false };
-    slot.cat = cat;
-    cats.set(key, cat);
-    stage.classList.add('has-cats');
+    const raver = { key, name, platform, el, p, slot, last: Date.now(), shownAt: Date.now(), speaking: false, queue: [], leaving: false };
+    slot.raver = raver;
+    ravers.set(key, raver);
+    stage.classList.add('has-ravers');
     if (CFG.sfx) burst(slot.x, p);
-    return cat;
+    return raver;
   }
 
-  function leave(cat) {
-    if (cat.leaving) return;
-    cat.leaving = true;
-    cats.delete(cat.key);
-    if (!cats.size) stage.classList.remove('has-cats');
-    if (cat.slot && cat.slot.cat === cat) { cat.slot.cat = null; cat.slot.busyUntil = Date.now() + EXIT_MS; }
-    cat.el.querySelectorAll('.bwrap').forEach(b => activeBubbles.delete(b));
-    cat.el.classList.add('leaving');
-    setTimeout(() => cat.el.remove(), 850);
+  function leave(raver) {
+    if (raver.leaving) return;
+    raver.leaving = true;
+    ravers.delete(raver.key);
+    if (!ravers.size) stage.classList.remove('has-ravers');
+    if (raver.slot && raver.slot.raver === raver) { raver.slot.raver = null; raver.slot.busyUntil = Date.now() + EXIT_MS; }
+    raver.el.querySelectorAll('.bwrap').forEach(b => activeBubbles.delete(b));
+    raver.el.classList.add('leaving');
+    setTimeout(() => raver.el.remove(), 850);
   }
 
 
   // ---------------- comic SFX ----------------
-  const SFX_WORDS = ['MEOW!', 'POW!', 'NYA!', 'ZAP!', 'BOOM!', 'WHAM!', 'PURR!', 'BAM!', 'MRRP!', 'KAPOW!'];
+  const SFX_WORDS = THEME.sfx;
   const starPoly = (() => {
     const pts = [], n = 12;
     for (let i = 0; i < n * 2; i++) {
@@ -782,8 +2017,8 @@
 
   // ---------------- sparkles ----------------
   if (CFG.sparks) setInterval(() => {
-    if (!cats.size || document.querySelectorAll('.spark').length > 40) return;
-    const list = [...cats.values()].filter(c => !c.leaving);
+    if (!ravers.size || document.querySelectorAll('.spark').length > 40) return;
+    const list = [...ravers.values()].filter(c => !c.leaving);
     if (!list.length) return;
     const c = list[Math.floor(Math.random() * list.length)];
     const left = Math.random() < .5;
@@ -800,7 +2035,7 @@
   // ---------------- synchronized "drop" spin ----------------
   (function scheduleSync() {
     setTimeout(() => {
-      if (cats.size >= 2) {
+      if (ravers.size >= 2) {
         stage.classList.add('sync');
         setTimeout(() => stage.classList.remove('sync'), BEAT * 2000 + 50);
       }
@@ -833,7 +2068,7 @@
     return words;
   }
 
-  function layoutBubble(wrap, cat) {
+  function layoutBubble(wrap, raver) {
     const W = innerWidth;
     let shift = 0, lift = 0;
     wrap.style.setProperty('--shift', '0px');
@@ -855,7 +2090,7 @@
       lift += r.bottom - hit.top + 22;
       wrap.style.setProperty('--lift', lift + 'px');
     }
-    cat.el.style.zIndex = lift > 0 ? 4 : 6;
+    raver.el.style.zIndex = lift > 0 ? 4 : 6;
     if (wrap._redraw) wrap._redraw();
     return { shift, lift };
   }
@@ -876,7 +2111,7 @@
       const shift = parseFloat(wrap.style.getPropertyValue('--shift')) || 0;
       const lift = parseFloat(wrap.style.getPropertyValue('--lift')) || 0;
       const th = 24 + lift;                 // pointer length (stretches when the bubble is lifted)
-      const tip = W / 2 - shift;            // the cat's center, in bubble coordinates
+      const tip = W / 2 - shift;            // the raver's center, in bubble coordinates
       const bw = 26;                        // pointer base width
       let xl = tip - 7, xr = xl + bw;
       if (xr > W - r - 3) { xr = W - r - 3; xl = xr - bw; }
@@ -902,18 +2137,18 @@
     wrap._redraw = draw; // redraw once web fonts load
   }
 
-  function speak(cat, tokens, kind, badges = []) {
-    if (cat.leaving) return;
-    cat.last = Date.now();
-    clearTimeout(cat.exitTimer);
-    if (cat.speaking) {
-      if (cat.queue.length < 3) cat.queue.push([tokens, kind, badges]);
+  function speak(raver, tokens, kind, badges = []) {
+    if (raver.leaving) return;
+    raver.last = Date.now();
+    clearTimeout(raver.exitTimer);
+    if (raver.speaking) {
+      if (raver.queue.length < 3) raver.queue.push([tokens, kind, badges]);
       return;
     }
     const words = toWords(tokens);
-    if (!words.length) { if (!cat.speaking) leave(cat); return; }
-    cat.speaking = true;
-    cat.el.classList.add('talking');
+    if (!words.length) { if (!raver.speaking) leave(raver); return; }
+    raver.speaking = true;
+    raver.el.classList.add('talking');
 
     const wrap = document.createElement('div');
     wrap.className = 'bwrap';
@@ -929,7 +2164,7 @@
       for (const w of txt.children) right = Math.max(right, w.offsetLeft + w.offsetWidth);
       if (right) txt.style.width = Math.ceil(right - txt.offsetLeft + 1) + 'px';
     };
-    const relayout = () => { if (wrap.isConnected) { fitText(); layoutBubble(wrap, cat); } };
+    const relayout = () => { if (wrap.isConnected) { fitText(); layoutBubble(wrap, raver); } };
     if (words.every(w => w.t === 'emote')) bubble.classList.add('emoteonly');
     words.forEach((w, i) => {
       const s = document.createElement('span');
@@ -953,10 +2188,10 @@
     });
     face.appendChild(txt);
     const cap = document.createElement('div'); cap.className = 'cap';
-    const dot = document.createElement('i'); dot.className = cat.platform;
-    const chars = Array.from(cat.name);
+    const dot = document.createElement('i'); dot.className = raver.platform;
+    const chars = Array.from(raver.name);
     const nm = document.createElement('span');
-    nm.textContent = chars.length > 22 ? chars.slice(0, 21).join('') + '…' : cat.name;
+    nm.textContent = chars.length > 22 ? chars.slice(0, 21).join('') + '…' : raver.name;
     cap.append(dot);
     if (badges && badges.length) {
       const bw = document.createElement('span'); bw.className = 'badges';
@@ -975,16 +2210,16 @@
       cap.appendChild(pr);
       if (wrap.isConnected) { fitCap(); relayout(); }
     };
-    if (cat.pronouns) addPronouns(cat.pronouns);
-    else if (cat.pronP) cat.pronP.then(addPronouns);
+    if (raver.pronouns) addPronouns(raver.pronouns);
+    else if (raver.pronP) raver.pronP.then(addPronouns);
     bubble.append(face, cap);
     wrap.appendChild(bubble);
-    cat.el.appendChild(wrap);
+    raver.el.appendChild(wrap);
     // widen the bubble if the name label is longer than the message, so the label never hangs off the side
     fitCap();
     fitText();
     activeBubbles.add(wrap);
-    layoutBubble(wrap, cat);
+    layoutBubble(wrap, raver);
     makeShape(bubble, face, wrap, kind);
 
     const textLen = words.reduce((n, w) => n + (w.t === 'text' ? w.v.length : w.t === 'gif' ? 12 : 3), 0);
@@ -992,20 +2227,20 @@
     const hold = clamp(2200 + textLen * 55, 2500, 9000) * CFG.hold;
 
     setTimeout(() => {
-      if (cat.leaving) return;
+      if (raver.leaving) return;
       bubble.classList.add('fade');
       setTimeout(() => {
         bubble.classList.add('out');
         setTimeout(() => {
           wrap.remove();
           activeBubbles.delete(wrap);
-          cat.speaking = false;
-          cat.el.classList.remove('talking');
-          cat.last = Date.now();
-          const next = cat.queue.shift();
-          if (cat.leaving) return;
-          if (next) setTimeout(() => speak(cat, next[0], next[1], next[2]), 150);
-          else cat.exitTimer = setTimeout(() => leave(cat), CFG.linger); // only on screen while talking
+          raver.speaking = false;
+          raver.el.classList.remove('talking');
+          raver.last = Date.now();
+          const next = raver.queue.shift();
+          if (raver.leaving) return;
+          if (next) setTimeout(() => speak(raver, next[0], next[1], next[2]), 150);
+          else raver.exitTimer = setTimeout(() => leave(raver), CFG.linger); // only on screen while talking
         }, 360);
       }, words.length * 45 + 500);
     }, reveal + hold);
@@ -1025,8 +2260,8 @@
     const kind = action ? 'action' : (letters.length >= 4 && letters === letters.toUpperCase() ? 'shout' : '');
 
     const key = platform + ':' + lower;
-    const cat = cats.get(key);
-    if (cat) { speak(cat, tokens, kind, badges); return; }
+    const raver = ravers.get(key);
+    if (raver) { speak(raver, tokens, kind, badges); return; }
     const wait = pending.get(key);
     if (wait) { if (wait.msgs.length < 3) wait.msgs.push([tokens, kind, badges]); return; }
     const pronP = platform === 'twitch' && CFG.pronouns ? pronounsFor((login || name).toLowerCase()) : null;
@@ -1034,8 +2269,8 @@
     trySpawn(key);
   }
 
-  // Chatters waiting for a free spot. A new cat never takes a spot that is occupied or
-  // still being vacated; if the stage is full, the cat that has been up longest is asked
+  // Chatters waiting for a free spot. A new raver never takes a spot that is occupied or
+  // still being vacated; if the stage is full, the raver that has been up longest is asked
   // to leave (once it has had a few seconds on screen) and the newcomer waits for the spot.
   const pending = new Map();
   function trySpawn(key) {
@@ -1044,20 +2279,20 @@
     const slot = pickSlot();
     if (slot) {
       pending.delete(key);
-      const cat = spawnCat(key, w.name, w.color, w.platform, slot);
-      if (w.pronP) { cat.pronP = w.pronP; w.pronP.then(t => { cat.pronouns = t; }); }
+      const raver = spawnRaver(key, w.name, w.color, w.platform, slot);
+      if (w.pronP) { raver.pronP = w.pronP; w.pronP.then(t => { raver.pronouns = t; }); }
       const [first, ...rest] = w.msgs;
-      cat.queue.push(...rest);
-      setTimeout(() => speak(cat, first[0], first[1], first[2]), 450);
+      raver.queue.push(...rest);
+      setTimeout(() => speak(raver, first[0], first[1], first[2]), 450);
       return;
     }
     const now = Date.now();
-    const vacating = slots.filter(s => !s.cat && now < (s.busyUntil || 0));
+    const vacating = slots.filter(s => !s.raver && now < (s.busyUntil || 0));
     let retry = 300;
     if (vacating.length) {
       retry = Math.min(...vacating.map(s => s.busyUntil - now)) + 20;
     } else if (vacating.length + pending.size > 0) {
-      const live = [...cats.values()].filter(c => !c.leaving).sort((a, b) => a.shownAt - b.shownAt);
+      const live = [...ravers.values()].filter(c => !c.leaving).sort((a, b) => a.shownAt - b.shownAt);
       const victim = live.find(c => !c.speaking) || live.find(c => now - c.shownAt > 3500);
       if (victim) { leave(victim); retry = EXIT_MS + 20; }
     }
@@ -1065,9 +2300,9 @@
     setTimeout(() => trySpawn(key), retry);
   }
 
-  window.raveCats = {
+  window.rave = {
     say: (name, text, opts = {}) => handleChat({ name, text, color: opts.color, platform: opts.platform || 'custom' }),
-    clear: () => [...cats.values()].forEach(leave),
+    clear: () => [...ravers.values()].forEach(leave),
   };
 
   // ---------------- hidden / shown ----------------
@@ -1077,12 +2312,12 @@
   let hidden = document.hidden, quietUntil = 0, shownAt = Date.now();
   function resetStage() {
     pending.clear();
-    cats.forEach(c => { c.leaving = true; clearTimeout(c.exitTimer); });
-    cats.clear();
+    ravers.forEach(c => { c.leaving = true; clearTimeout(c.exitTimer); });
+    ravers.clear();
     activeBubbles.clear();
-    slots.forEach(s => { s.cat = null; s.busyUntil = 0; });
-    stage.querySelectorAll('.cat, .sfx, .spark').forEach(el => el.remove());
-    stage.classList.remove('has-cats', 'sync');
+    slots.forEach(s => { s.raver = null; s.busyUntil = 0; });
+    stage.querySelectorAll('.raver, .sfx, .spark').forEach(el => el.remove());
+    stage.classList.remove('has-ravers', 'sync');
   }
   function setHidden(h) {
     if (h === hidden) return;
@@ -1247,7 +2482,7 @@
     ]);
     if (kickUserId) await getJSON(`https://7tv.io/v3/users/kick/${kickUserId}`).then(u => stv(u.emote_set && u.emote_set.emotes)).catch(() => {});
     if (next.size) { extEmotes.clear(); next.forEach((v, k) => extEmotes.set(k, v)); }
-    console.log('[raveCats] loaded', extEmotes.size, 'BTTV/FFZ/7TV emotes');
+    console.log('[rave] loaded', extEmotes.size, 'BTTV/FFZ/7TV emotes');
   }
   function expandExtEmotes(tokens) {
     if (!extEmotes.size) return tokens;
@@ -1326,7 +2561,7 @@
           return;
         }
         const cc = /CLEARCHAT #\S+ :(\S+)$/.exec(line);
-        if (cc) { const c = cats.get('twitch:' + cc[1].toLowerCase()); if (c) leave(c); }
+        if (cc) { const c = ravers.get('twitch:' + cc[1].toLowerCase()); if (c) leave(c); }
       });
     };
     ws.onclose = () => setTimeout(() => connectTwitch(channel), 3000);
@@ -1381,8 +2616,8 @@
       const r = await fetch(`${API}videos?part=liveStreamingDetails&id=${encodeURIComponent(videoId)}&key=${encodeURIComponent(key)}`);
       const j = await r.json();
       chatId = j.items && j.items[0] && j.items[0].liveStreamingDetails && j.items[0].liveStreamingDetails.activeLiveChatId;
-      if (!chatId) { console.warn('[raveCats] YouTube: no active live chat for', videoId, j.error || ''); return retry(); }
-    } catch (e) { console.warn('[raveCats] YouTube lookup failed', e); return retry(); }
+      if (!chatId) { console.warn('[rave] YouTube: no active live chat for', videoId, j.error || ''); return retry(); }
+    } catch (e) { console.warn('[rave] YouTube lookup failed', e); return retry(); }
 
     let pageToken = '', first = true;
     const poll = async () => {
@@ -1391,14 +2626,14 @@
         const r = await fetch(`${API}liveChat/messages?liveChatId=${encodeURIComponent(chatId)}&part=snippet,authorDetails&maxResults=200&key=${encodeURIComponent(key)}${pageToken ? '&pageToken=' + pageToken : ''}`);
         const j = await r.json();
         if (j.error) {
-          console.warn('[raveCats] YouTube:', j.error.message);
+          console.warn('[rave] YouTube:', j.error.message);
           if (r.status === 403 || r.status === 404) return retry(); // chat ended or quota hit
           wait = 15000;
         } else {
           pageToken = j.nextPageToken || pageToken;
           wait = Math.max(CFG.ytpoll, j.pollingIntervalMillis || 0);
           if (!first) {
-            // spread a batch out over the poll window so cats don't all talk at once
+            // spread a batch out over the poll window so ravers don't all talk at once
             // (and drop anything sent while the overlay was hidden)
             const items = (j.items || []).filter(it => it.snippet && it.snippet.displayMessage && !(Date.parse(it.snippet.publishedAt) < shownAt));
             items.forEach((it, i) => setTimeout(() => handleChat({
@@ -1430,7 +2665,7 @@
       kickSubBadges = (ch.subscriber_badges || []).map(b => ({ months: b.months, url: b.badge_image && b.badge_image.src }))
         .filter(b => b.url).sort((a, b) => b.months - a.months);
       if (ch.user_id && String(ch.user_id) !== kickUserId) { kickUserId = String(ch.user_id); if (CFG.extemotes) loadExtEmotes(); }
-    } catch (e) { console.warn('[raveCats] Kick channel lookup failed for', slug, e); return setTimeout(() => connectKick(slug), 30000); }
+    } catch (e) { console.warn('[rave] Kick channel lookup failed for', slug, e); return setTimeout(() => connectKick(slug), 30000); }
     kickSocket(chatroom);
   }
   function kickSocket(chatroom) {
@@ -1456,7 +2691,7 @@
         });
       } else if (o.event === 'App\\Events\\UserBannedEvent') {
         const u = d.user && d.user.username;
-        const c = u && cats.get('kick:' + u.toLowerCase()); if (c) leave(c);
+        const c = u && ravers.get('kick:' + u.toLowerCase()); if (c) leave(c);
       }
     };
     ws.onclose = () => setTimeout(() => kickSocket(chatroom), 3000);
@@ -1488,14 +2723,13 @@
 
   // ---------------- demo mode ----------------
   function runDemo() {
-    const names = ['NeonWhiskers', 'bass_drop_betty', 'PixelPaws', 'GlowstickGary', 'mochi_raver', 'DJ_Catnip',
-                   'lofi_luna', 'Zoomies4Life', 'vaporpurr', 'TechnoTabby', 'kittykat_9000', 'sunny_sardine'];
+    const names = ['bass_drop_betty', 'GlowstickGary', 'mochi_raver', 'lofi_luna', ...THEME.names];
     const lines = [
       'LETS GOOO', 'this beat is unreal', 'hi chat!! 👋', 'the drop is coming i can feel it',
-      'who else is vibing rn', 'meow meow meow', 'turn it UP', 'this overlay is so cute omg',
-      '🎶🎶🎶', 'first time here, love the energy', 'my cat is dancing too lol',
+      'who else is vibing rn', 'turn it UP', 'this overlay is so cute omg',
+      '🎶🎶🎶', 'first time here, love the energy', ...THEME.lines,
       'can we get a remix of this one?', 'gg', 'hydrate check 💧', 'WHAT A SET',
-      'bro the glowsticks 😭', 'I have been waiting all week for this stream', 'pspspsps',
+      'bro the glowsticks 😭', 'I have been waiting all week for this stream',
     ];
     const colors = ['#FF4500', '#1E90FF', '#9ACD32', '#FF69B4', '#8A2BE2', '#00FF7F', '', '', '#DAA520', '#5F9EA0'];
     const tick = () => {
@@ -1522,9 +2756,9 @@
       const j = await r.json();
       let n = 0;
       (j.bots || []).forEach(b => { const name = Array.isArray(b) ? b[0] : b; if (name) { CFG.ignore.add(String(name).toLowerCase()); n++; } });
-      console.log('[raveCats] loaded', n, 'known bots');
+      console.log('[rave] loaded', n, 'known bots');
     } catch (e) {
-      console.warn('[raveCats] known-bot list unavailable, using ignore= only', e);
+      console.warn('[rave] known-bot list unavailable, using ignore= only', e);
     }
     setTimeout(loadBotList, 6 * 3600 * 1000); // refresh every 6 hours
   }
@@ -1533,14 +2767,14 @@
   // Open it from OBS: right-click the source → Interact, move the mouse, click the gear.
   (function settingsUI() {
     const gear = document.createElement('button');
-    gear.id = 'gear'; gear.title = 'Rave Cat settings';
+    gear.id = 'gear'; gear.title = 'Rave Chat settings';
     gear.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm9 3.5-2.2-.8a7 7 0 0 0-.6-1.5l1-2.1-1.8-1.8-2.1 1a7 7 0 0 0-1.5-.6L13 2h-2l-.8 2.2a7 7 0 0 0-1.5.6l-2.1-1-1.8 1.8 1 2.1a7 7 0 0 0-.6 1.5L3 11v2l2.2.8c.1.5.3 1 .6 1.5l-1 2.1 1.8 1.8 2.1-1c.5.3 1 .5 1.5.6L11 22h2l.8-2.2a7 7 0 0 0 1.5-.6l2.1 1 1.8-1.8-1-2.1c.3-.5.5-1 .6-1.5L21 13z" fill="#111"/></svg>';
     document.body.appendChild(gear);
 
     const panel = document.createElement('div');
     panel.id = 'settings';
-    panel.innerHTML = `<div class="sp" role="dialog" aria-label="Rave Cat settings">
-      <div class="sp-head"><h2>Rave Cat Chat — Settings</h2>
+    panel.innerHTML = `<div class="sp" role="dialog" aria-label="Rave Chat settings">
+      <div class="sp-head"><h2>Rave Chat — Settings</h2>
         <p>Saved in this browser source and applied when you press <b>Save &amp; apply</b>. Heads up: this window shows on stream while it's open.</p></div>
       <div class="sp-body"></div>
       <div class="sp-foot">
@@ -1573,6 +2807,10 @@
         inp = document.createElement('input'); inp.type = 'checkbox';
         sw.append(inp, document.createElement('i'));
         row.append(lab, sw); wrapF.appendChild(row);
+      } else if (f.type === 'select') {
+        inp = document.createElement('select');
+        for (const [v, t] of f.opts) { const o = document.createElement('option'); o.value = v; o.textContent = t; inp.appendChild(o); }
+        wrapF.append(lab, inp);
       } else {
         inp = document.createElement(f.type === 'area' ? 'textarea' : 'input');
         if (f.type !== 'area') inp.type = f.type === 'num' ? 'number' : f.type;
@@ -1619,8 +2857,8 @@
       if (!act) return;
       if (act === 'close') close();
       if (act === 'test') {
-        const n = ['TestKitty', 'SettingsCat', 'PreviewPurr', 'DemoMeow'][Math.floor(Math.random() * 4)];
-        window.raveCats.say(n, 'This is how chat will look! 🎶', { platform: CFG.channel ? 'twitch' : CFG.kick ? 'kick' : CFG.youtube ? 'youtube' : CFG.tiktok ? 'tiktok' : 'custom' });
+        const n = THEME.testNames[Math.floor(Math.random() * THEME.testNames.length)];
+        window.rave.say(n, 'This is how chat will look! 🎶', { platform: CFG.channel ? 'twitch' : CFG.kick ? 'kick' : CFG.youtube ? 'youtube' : CFG.tiktok ? 'tiktok' : 'custom' });
         msg.textContent = 'Sent a test message (uses the settings currently running).';
       }
       if (act === 'reset') {
@@ -1679,7 +2917,7 @@
   if (CFG.youtube) {
     if (/^wss?:\/\//i.test(CFG.youtube)) connectBridge(CFG.youtube, 'youtube');
     else if (CFG.ytkey) connectYouTube(CFG.youtube.replace(/^.*(?:v=|youtu\.be\/|live\/)([\w-]{11}).*$/, '$1'), CFG.ytkey);
-    else console.warn('[raveCats] youtube= needs ytkey= (or a ws:// bridge URL)');
+    else console.warn('[rave] youtube= needs ytkey= (or a ws:// bridge URL)');
   }
   if (CFG.demo) runDemo();
 })();
